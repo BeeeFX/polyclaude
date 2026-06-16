@@ -1,0 +1,24 @@
+# dependencies & build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# logs & OS cruft
+*.log
+.DS_Store
+Thumbs.db
+
+# env & editor
+.env
+.env.*
+.vscode/
+.idea/
+
+# never commit captured credentials or the local vault
+*.credentials.json
+vault.json
+/sandbox/
+
+# scratch / temp test files
+_*.ts
+_*.tsx
