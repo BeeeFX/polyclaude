@@ -5,6 +5,7 @@ import { registerUsageCommands } from "./commands/usage.js";
 import { registerConfigCommands } from "./commands/config.js";
 import { registerRunCommands } from "./commands/run.js";
 import { registerConversationCommands } from "./commands/conversations.js";
+import { registerStatuslineCommand } from "./commands/statusline.js";
 import { isSupported } from "../core/crypto.js";
 import { fail } from "./format.js";
 
@@ -24,6 +25,7 @@ registerUsageCommands(program);
 registerConfigCommands(program);
 registerRunCommands(program);
 registerConversationCommands(program);
+registerStatuslineCommand(program);
 
 program
   .command("dashboard")

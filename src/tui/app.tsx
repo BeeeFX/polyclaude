@@ -81,6 +81,8 @@ export function App({ result }: { result: DashboardResult }) {
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ label: string; value: string } | null>(null);
   const [activeUsage, setActiveUsage] = useState<AccountUsage | null>(null);
+  const [picking, setPicking] = useState(false); // "continue on which account?" picker
+  const [pickSel, setPickSel] = useState(0);
   const [, setTick] = useState(0); // forces re-render so "updated …s ago" counts up
   const fetchingAll = useRef(false);
 
@@ -160,17 +162,13 @@ export function App({ result }: { result: DashboardResult }) {
     return others[0].label;
   };
 
-  /** Switch to the best other account and resume the most recent conversation on it. */
-  const continueOnNextAccount = async () => {
-    const target = pickNextAccount();
-    if (!target) {
-      flash("No other account to switch to — press a to add one");
-      return;
-    }
+  /** Switch to the chosen account and resume the most recent conversation on it. */
+  const continueOn = async (target: string) => {
     try {
       await switchTo(target, "manual");
     } catch (e) {
       flash((e as Error).message);
+      setPicking(false);
       return;
     }
     const [latest] = await conversations.list(1);
@@ -234,6 +232,17 @@ export function App({ result }: { result: DashboardResult }) {
       return;
     }
 
+    // Dashboard — "continue on which account?" picker
+    if (picking) {
+      if (key.escape || input === "b") setPicking(false);
+      else if (key.upArrow) setPickSel((s) => Math.max(0, s - 1));
+      else if (key.downArrow) setPickSel((s) => Math.min(accounts.length - 1, s + 1));
+      else if (key.return) {
+        const target = accounts[pickSel]?.label;
+        if (target) void continueOn(target);
+      }
+      return;
+    }
     // Dashboard — inline rename input
     if (renaming) {
       if (key.escape) setRenaming(null);
@@ -294,7 +303,12 @@ export function App({ result }: { result: DashboardResult }) {
       setView("conversations");
       void loadConvos();
     } else if (input === "g") {
-      void continueOnNextAccount();
+      // Open the "continue on which account?" picker, defaulting to the one with
+      // the most headroom.
+      const def = pickNextAccount();
+      const idx = def ? accounts.findIndex((a) => a.label === def) : sel;
+      setPickSel(Math.max(0, idx));
+      setPicking(true);
     } else if (input === "R") {
       const label = accounts[sel]?.label;
       if (label) setRenaming({ label, value: label });
@@ -363,6 +377,53 @@ export function App({ result }: { result: DashboardResult }) {
         </Box>
         <Box marginTop={1}>
           <Text dimColor>press any key to close</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // ---- "Continue on which account?" picker -------------------------------
+  if (picking) {
+    return (
+      <Box flexDirection="column" paddingX={1}>
+        <Title />
+        <Box marginTop={1}>
+          <Text bold>Continue your conversation on which account?</Text>
+        </Box>
+        <Box flexDirection="column" marginTop={1}>
+          <Box>
+            <Text dimColor>
+              {"  "}
+              {col("LABEL", 14)}
+              {col("EMAIL", 30)}
+              {col("PLAN", 6)}
+              {col("5H", 7)}
+              {"7D"}
+            </Text>
+          </Box>
+          {accounts.map((a, i) => {
+            const isSel = i === pickSel;
+            const isActive = a.label === activeLabel;
+            const au = a.usage;
+            return (
+              <Box key={a.label}>
+                <Text color={isSel ? "cyan" : undefined}>
+                  {isSel ? "▸ " : "  "}
+                  {isActive ? "● " : "○ "}
+                </Text>
+                <Text color={isSel ? "cyan" : isActive ? "green" : undefined}>{col(a.label, 12)}</Text>
+                <Text dimColor>{col(a.email ?? "—", 30)}</Text>
+                <Text>{col(cap(a.subscriptionType) || "—", 6)}</Text>
+                <Text color={usageColor(au?.fiveHourPct)}>{col(pctText(au?.fiveHourPct), 7)}</Text>
+                <Text color={usageColor(au?.sevenDayPct)}>{pctText(au?.sevenDayPct)}</Text>
+              </Box>
+            );
+          })}
+        </Box>
+        <Box marginTop={1}>
+          <Text dimColor>
+            ↑/↓ select · ⏎ continue here (resumes your latest chat) · Esc cancel
+          </Text>
         </Box>
       </Box>
     );

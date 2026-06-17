@@ -132,6 +132,7 @@ Prefer commands? They still exist: `pcc login`, `pcc add <label>`.
 | `pcc chat` | Multi-turn chat that keeps context and auto-switches |
 | `pcc probe` | Tiny call to refresh the active account's live limit status |
 | `pcc launch` / `pcc code` | Launch interactive Claude Code with your saved settings |
+| `pcc statusline [--install]` | Show every account's usage in Claude Code's status line |
 | `pcc config` | Show settings |
 | `pcc set <key> <value>` | Set model / effort / thinking / autoswitch / budgets |
 | `pcc order <labels...>` | Set the failover order |
@@ -155,6 +156,22 @@ account.
 - **Assisted** — for the full interactive Claude Code TUI (`pcc launch`), switch
   with one key in the dashboard (or `pcc use`), then `claude -c` to continue the
   same conversation on the new account.
+
+## Watch usage inside Claude Code
+
+Claude Code is full-screen, so it covers the dashboard while you work. To keep an
+eye on **every account's usage from within Claude**, add polyclaude to Claude
+Code's status line:
+
+```sh
+pcc statusline --install
+```
+
+Now the bottom of Claude Code shows e.g. `polyclaude ● work 92% · ○ personal 12% · 5h`
+(active account in bold; red/yellow/green by level). It reads cached usage and
+refreshes the active account at most once every ~90s, so it never hammers the API.
+
+Prefer a separate view? Run `pcc usage --all --watch` in a split pane.
 
 ## Settings
 
