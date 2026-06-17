@@ -67,13 +67,11 @@ export async function runDashboard(): Promise<void> {
       const env = { ...process.env };
       if (s.thinking) env.MAX_THINKING_TOKENS = String(s.thinkingBudget);
       await spawnInteractive(args, env, result.cwd);
-      console.log("\nReopen the dashboard with:  pcc\n");
-      break;
+      continue; // Claude exited → return to the dashboard
     }
     if (result.action === "resume" && result.resumeId) {
       await spawnInteractive(["--resume", result.resumeId], { ...process.env }, result.cwd);
-      console.log("\nReopen the dashboard with:  pcc\n");
-      break;
+      continue; // Claude exited → return to the dashboard
     }
     if (result.action === "login") {
       releaseStdinToChild();
