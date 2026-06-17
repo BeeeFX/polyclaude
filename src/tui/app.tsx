@@ -53,6 +53,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ["a", "add or re-connect an account (opens your browser to sign in)"],
   ["l", "start a NEW conversation in Claude Code on the active account"],
   ["c", "past conversations: ⏎ reopens one, n starts a new one"],
+  ["g", "continue your latest chat on another account (switch + resume)"],
   ["R", "rename the selected account's label"],
   ["d", "remove the selected account (does not sign you out of Claude)"],
   ["m / e", "cycle the model / reasoning effort for launched sessions"],
@@ -149,6 +150,39 @@ export function App({ result }: { result: DashboardResult }) {
   const flash = (msg: string) => {
     setStatus(msg);
     setTimeout(() => setStatus(""), 2500);
+  };
+
+  /** The other account with the most 5-hour headroom (lowest usage); unknown = treated as fresh. */
+  const pickNextAccount = (): string | undefined => {
+    const others = accounts.filter((a) => a.label !== activeLabel);
+    if (others.length === 0) return undefined;
+    others.sort((a, b) => (a.usage?.fiveHourPct ?? 0) - (b.usage?.fiveHourPct ?? 0));
+    return others[0].label;
+  };
+
+  /** Switch to the best other account and resume the most recent conversation on it. */
+  const continueOnNextAccount = async () => {
+    const target = pickNextAccount();
+    if (!target) {
+      flash("No other account to switch to — press a to add one");
+      return;
+    }
+    try {
+      await switchTo(target, "manual");
+    } catch (e) {
+      flash((e as Error).message);
+      return;
+    }
+    const [latest] = await conversations.list(1);
+    if (latest) {
+      result.action = "resume";
+      result.resumeId = latest.sessionId;
+      result.cwd = latest.cwd;
+    } else {
+      result.action = "launch";
+      result.cwd = process.cwd();
+    }
+    exit();
   };
 
   const isEmpty = loaded && accounts.length === 0;
@@ -259,6 +293,8 @@ export function App({ result }: { result: DashboardResult }) {
     } else if (input === "c") {
       setView("conversations");
       void loadConvos();
+    } else if (input === "g") {
+      void continueOnNextAccount();
     } else if (input === "R") {
       const label = accounts[sel]?.label;
       if (label) setRenaming({ label, value: label });
@@ -440,6 +476,9 @@ export function App({ result }: { result: DashboardResult }) {
   // ---- Dashboard ----------------------------------------------------------
   const u = activeUsage ?? activeMeta?.usage;
   const usageUnavailable = !!u && (u.error != null || (u.fiveHourPct == null && u.sevenDayPct == null));
+  const activePct = u && u.error == null ? u.fiveHourPct ?? null : null;
+  const nextAcct = pickNextAccount();
+  const runningLow = activePct != null && activePct >= 85 && !!nextAcct;
   const planName = cap(activeMeta?.subscriptionType) || cap(live?.subscriptionType) || "Plan";
   const orgLabel = activeMeta
     ? isPersonalOrg(activeMeta.orgType)
@@ -496,8 +535,8 @@ export function App({ result }: { result: DashboardResult }) {
           <Text bold color={POLY_PURPLE}>
             Tips
           </Text>
-          <Text dimColor>• press l to start a new chat · c to continue a past one</Text>
-          <Text dimColor>• ⏎ switches account mid-chat (your conversation continues)</Text>
+          <Text dimColor>• press l for a new chat · c to continue a past one</Text>
+          <Text dimColor>• running low? g continues your chat on another account</Text>
           <Text dimColor>• press a to add another account</Text>
           <Box marginTop={1}>
             <Text bold color={POLY_PURPLE}>
@@ -625,10 +664,16 @@ export function App({ result }: { result: DashboardResult }) {
           </Text>
         ) : status ? (
           <Text color="yellow">{status}</Text>
+        ) : runningLow ? (
+          <Text color="yellow">
+            ⚠ {activeLabel} is at {Math.round(activePct as number)}% — press{" "}
+            <Text color="cyan">g</Text> to continue your chat on {nextAcct}
+          </Text>
         ) : (
           <Text> </Text>
         )}
-        <Text dimColor>↑/↓ select · ⏎ switch · l new chat · c chats · a add · R rename · d delete</Text>
+        <Text dimColor>↑/↓ select · ⏎ switch · l new chat · g continue elsewhere · c chats</Text>
+        <Text dimColor>a add · R rename · d delete · m/e/t/f settings · r refresh</Text>
         <Text dimColor>
           <Text color="cyan">?</Text> for shortcuts · q quit
         </Text>
