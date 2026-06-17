@@ -6,20 +6,28 @@ import * as settings from "../core/settings.js";
 import * as login from "../core/login.js";
 import { resolveClaudeBin } from "../core/claude.js";
 
-/** Put the terminal back into a normal (cooked, resumed) state after Ink, so a
- *  child process inherits sane stdin — otherwise raw mode left by Ink breaks
- *  line input (e.g. `claude auth login`'s paste-the-code prompt hangs). */
-function resetStdin(): void {
+/**
+ * Hand the keyboard fully to a child process. After Ink, polyclaude's own stdin
+ * is in raw/flowing mode with listeners attached — if we leave it that way the
+ * PARENT keeps reading stdin and steals the child's keystrokes, so the child
+ * (Claude's trust dialog, login prompt, etc.) appears frozen. So we detach our
+ * listeners, drop raw mode, and pause our stdin so the child fully owns it.
+ */
+function releaseStdinToChild(): void {
   try {
-    if (process.stdin.isTTY && process.stdin.setRawMode) process.stdin.setRawMode(false);
-    process.stdin.resume();
+    const stdin = process.stdin;
+    if (stdin.isTTY && stdin.setRawMode) stdin.setRawMode(false);
+    stdin.removeAllListeners("data");
+    stdin.removeAllListeners("readable");
+    stdin.removeAllListeners("keypress");
+    stdin.pause();
   } catch {
     /* ignore */
   }
 }
 
 function spawnInteractive(args: string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<void> {
-  resetStdin();
+  releaseStdinToChild();
   return new Promise((resolve) => {
     const child = spawn(resolveClaudeBin(), args, { stdio: "inherit", env, cwd });
     child.on("exit", () => resolve());
@@ -28,9 +36,11 @@ function spawnInteractive(args: string[], env: NodeJS.ProcessEnv, cwd?: string):
 }
 
 /**
- * The dashboard runs in a loop: render the TUI, and when the user triggers an
- * action that needs the real terminal (sign in, launch/resume Claude Code), we
- * unmount, do it with inherited stdio, then return to the dashboard.
+ * The dashboard renders in a loop. Actions that don't touch the terminal (like
+ * importing the current account) return to the dashboard. Actions that hand the
+ * terminal to a child process (launch / resume Claude, browser sign-in) release
+ * stdin to that child and then EXIT cleanly — re-rendering Ink after a child can
+ * leave input frozen on Windows, so we let the user reopen with `pcc` instead.
  */
 export async function runDashboard(): Promise<void> {
   if (!process.stdout.isTTY) {
@@ -44,6 +54,11 @@ export async function runDashboard(): Promise<void> {
     const instance = render(React.createElement(App, { result }));
     await instance.waitUntilExit();
 
+    if (result.action === "import") {
+      await login.addAccountInteractive("import"); // no child process — safe to loop
+      continue;
+    }
+
     if (result.action === "launch") {
       const s = await settings.load();
       const args: string[] = [];
@@ -52,25 +67,19 @@ export async function runDashboard(): Promise<void> {
       const env = { ...process.env };
       if (s.thinking) env.MAX_THINKING_TOKENS = String(s.thinkingBudget);
       await spawnInteractive(args, env, result.cwd);
-      continue;
+      console.log("\nReopen the dashboard with:  pcc\n");
+      break;
     }
     if (result.action === "resume" && result.resumeId) {
       await spawnInteractive(["--resume", result.resumeId], { ...process.env }, result.cwd);
-      continue;
+      console.log("\nReopen the dashboard with:  pcc\n");
+      break;
     }
-    if (result.action === "login" || result.action === "import") {
-      resetStdin();
-      const saved = await login.addAccountInteractive(result.action);
-      // After a browser sign-in the terminal/stdin can be left in a state where
-      // re-rendering Ink freezes input on Windows — so we exit cleanly here and
-      // let the user reopen a fresh dashboard rather than loop back into a UI
-      // that won't accept keystrokes.
-      if (result.action === "login") {
-        if (saved) console.log("Open the dashboard again with:  pcc\n");
-        break;
-      }
-      // Import has no child process, so looping back to the dashboard is safe.
-      continue;
+    if (result.action === "login") {
+      releaseStdinToChild();
+      await login.addAccountInteractive("login");
+      console.log("\nReopen the dashboard with:  pcc\n");
+      break;
     }
     break; // quit
   }

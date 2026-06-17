@@ -17,11 +17,16 @@ import type { CredentialsFile } from "../types.js";
 export function interactiveLogin(email?: string): Promise<number> {
   const args = ["auth", "login", "--claudeai"];
   if (email) args.push("--email", email);
-  // Hand the child a normal terminal (Ink may have left stdin in raw mode,
-  // which breaks claude's paste-the-code prompt).
+  // Give the child sole ownership of stdin: drop raw mode, detach our listeners,
+  // and PAUSE our own stdin (if the parent keeps reading it, it steals the
+  // child's keystrokes and claude's prompt appears frozen).
   try {
-    if (process.stdin.isTTY && process.stdin.setRawMode) process.stdin.setRawMode(false);
-    process.stdin.resume();
+    const stdin = process.stdin;
+    if (stdin.isTTY && stdin.setRawMode) stdin.setRawMode(false);
+    stdin.removeAllListeners("data");
+    stdin.removeAllListeners("readable");
+    stdin.removeAllListeners("keypress");
+    stdin.pause();
   } catch {
     /* ignore */
   }

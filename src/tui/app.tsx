@@ -48,17 +48,17 @@ function pctText(pct?: number | null): string {
 }
 
 const SHORTCUTS: Array<[string, string]> = [
-  ["↑ / ↓", "move selection"],
-  ["⏎ / s", "switch to the selected account"],
-  ["a", "add / sign in to another account"],
-  ["c", "browse & continue past conversations"],
-  ["l", "launch Claude Code on the active account"],
-  ["R", "rename the selected account"],
-  ["d", "delete the selected account"],
-  ["m / e", "cycle model / effort"],
-  ["t / f", "toggle thinking / auto-switch"],
-  ["r", "refresh usage now"],
-  ["? ", "show / hide this help"],
+  ["↑ / ↓", "move the selection up and down the account list"],
+  ["⏎ / s", "switch to the selected account — your conversation keeps going"],
+  ["a", "add or re-connect an account (opens your browser to sign in)"],
+  ["c", "browse past conversations; ⏎ reopens one on the active account"],
+  ["l", "launch full Claude Code on the active account (PRs, media, etc.)"],
+  ["R", "rename the selected account's label"],
+  ["d", "remove the selected account (does not sign you out of Claude)"],
+  ["m / e", "cycle the model / reasoning effort for launched sessions"],
+  ["t / f", "toggle extended thinking / auto-switch on limits"],
+  ["r", "refresh the usage numbers now"],
+  ["?", "show / hide this help"],
   ["q", "quit"],
 ];
 
@@ -166,7 +166,9 @@ export function App({ result }: { result: DashboardResult }) {
       return;
     }
     if (isEmpty) {
-      if (live?.loggedIn) {
+      if (input === "?") {
+        setShowHelp(true);
+      } else if (live?.loggedIn) {
         if (key.return) {
           result.action = "import";
           exit();
@@ -291,8 +293,24 @@ export function App({ result }: { result: DashboardResult }) {
         <Title />
         <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor={POLY_PURPLE} paddingX={2} paddingY={1}>
           <Text bold color={POLY_PURPLE}>
-            Keyboard shortcuts
+            polyclaude — quick guide
           </Text>
+          <Box marginTop={1} flexDirection="column">
+            <Text>Keep several Claude accounts in one place and switch between them so</Text>
+            <Text>you can keep working when one hits its usage limit. Each switch keeps</Text>
+            <Text>your conversation, because the transcript lives on your machine.</Text>
+            <Box marginTop={1}>
+              <Text dimColor>
+                The <Text color="cyan">Plan usage</Text> box shows your real session (5h) and weekly (7d) usage
+              </Text>
+            </Box>
+            <Text dimColor>with reset times. It refreshes on its own and when you press r.</Text>
+          </Box>
+          <Box marginTop={1}>
+            <Text bold color={POLY_PURPLE}>
+              What the keys do
+            </Text>
+          </Box>
           <Box marginTop={1} flexDirection="column">
             {SHORTCUTS.map(([k, d]) => (
               <Text key={k}>
@@ -363,7 +381,9 @@ export function App({ result }: { result: DashboardResult }) {
           </Box>
         </Box>
         <Box marginTop={1}>
-          <Text dimColor>q quit</Text>
+          <Text dimColor>
+            <Text color="cyan">?</Text> help · q quit
+          </Text>
         </Box>
       </Box>
     );
