@@ -51,8 +51,8 @@ const SHORTCUTS: Array<[string, string]> = [
   ["↑ / ↓", "move the selection up and down the account list"],
   ["⏎ / s", "switch to the selected account — your conversation keeps going"],
   ["a", "add or re-connect an account (opens your browser to sign in)"],
-  ["c", "browse past conversations; ⏎ reopens one on the active account"],
-  ["l", "launch full Claude Code on the active account (PRs, media, etc.)"],
+  ["l", "start a NEW conversation in Claude Code on the active account"],
+  ["c", "past conversations: ⏎ reopens one, n starts a new one"],
   ["R", "rename the selected account's label"],
   ["d", "remove the selected account (does not sign you out of Claude)"],
   ["m / e", "cycle the model / reasoning effort for launched sessions"],
@@ -190,6 +190,11 @@ export function App({ result }: { result: DashboardResult }) {
         result.action = "resume";
         result.resumeId = convos[convSel].sessionId;
         result.cwd = convos[convSel].cwd;
+        exit();
+      } else if (input === "n") {
+        // Start a fresh conversation (a new Claude Code session in this folder).
+        result.action = "launch";
+        result.cwd = process.cwd();
         exit();
       } else if (key.escape || input === "b") setView("dashboard");
       return;
@@ -398,7 +403,11 @@ export function App({ result }: { result: DashboardResult }) {
       <Box flexDirection="column" paddingX={1}>
         <Box justifyContent="space-between">
           <Text bold>Conversations</Text>
-          <Text dimColor>continue one on {activeLabel ?? "active account"}</Text>
+          <Text dimColor>on {activeLabel ?? "active account"}</Text>
+        </Box>
+        <Box marginTop={1}>
+          <Text color="cyan">＋ n</Text>
+          <Text dimColor>  start a new conversation</Text>
         </Box>
         <Box flexDirection="column" marginTop={1}>
           {convos === null ? (
@@ -422,7 +431,7 @@ export function App({ result }: { result: DashboardResult }) {
           )}
         </Box>
         <Box marginTop={1}>
-          <Text dimColor>↑/↓ select · ⏎ continue · b/Esc back · q quit</Text>
+          <Text dimColor>↑/↓ select · ⏎ continue · n new conversation · b/Esc back · q quit</Text>
         </Box>
       </Box>
     );
@@ -487,9 +496,9 @@ export function App({ result }: { result: DashboardResult }) {
           <Text bold color={POLY_PURPLE}>
             Tips
           </Text>
-          <Text dimColor>• ⏎ switches account mid-chat — continue it under c</Text>
+          <Text dimColor>• press l to start a new chat · c to continue a past one</Text>
+          <Text dimColor>• ⏎ switches account mid-chat (your conversation continues)</Text>
           <Text dimColor>• press a to add another account</Text>
-          <Text dimColor>• press l to launch Claude on {activeLabel ?? "your account"}</Text>
           <Box marginTop={1}>
             <Text bold color={POLY_PURPLE}>
               Recent activity
@@ -619,7 +628,7 @@ export function App({ result }: { result: DashboardResult }) {
         ) : (
           <Text> </Text>
         )}
-        <Text dimColor>↑/↓ select · ⏎ switch · a add · c chats · l launch · R rename · d delete</Text>
+        <Text dimColor>↑/↓ select · ⏎ switch · l new chat · c chats · a add · R rename · d delete</Text>
         <Text dimColor>
           <Text color="cyan">?</Text> for shortcuts · q quit
         </Text>
