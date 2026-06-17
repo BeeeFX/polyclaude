@@ -39,7 +39,8 @@
     "dev": "tsx src/cli/index.ts",
     "pcc": "tsx src/cli/index.ts",
     "smoke": "tsx test/tui-smoke.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "npm run build"
   },
   "engines": {
     "node": ">=18"

@@ -73,9 +73,26 @@ installed and signed in.
 ```sh
 git clone https://github.com/BeeeFX/polyclaude.git
 cd polyclaude
-npm install
-npm run build           # compiles to dist/  (then `node dist/cli/index.js`)
-# or run from source:
+npm install             # also builds (via the prepare script)
+```
+
+### Run `polyclaude` from anywhere
+
+To use `polyclaude` (and the short alias `pcc`) in any terminal — just like
+typing `claude`:
+
+```sh
+npm link                # registers global `polyclaude` and `pcc` commands
+```
+
+Now open any PowerShell window and run `polyclaude`. After pulling updates,
+`npm run build` refreshes the global command (it points at the build). Remove it
+later with `npm uninstall -g polyclaude`. Prefer a fixed copy over a live link?
+Use `npm install -g .` instead.
+
+You can also run it without installing, straight from the repo:
+
+```sh
 npm run pcc -- <command> [args]
 ```
 
