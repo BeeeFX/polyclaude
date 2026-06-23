@@ -68,6 +68,7 @@ export interface PolyApi {
   };
   conversations: { list(limit?: number): Promise<Conversation[]> };
   claude: { launch(cwd?: string): Promise<Result> };
+  clipboard: { saveImage(bytes: Uint8Array): Promise<string | null> };
   terminal: {
     available(): Promise<boolean>;
     start(opts: TermStartOpts): Promise<{ ok: true; id: number } | { ok: false; error: string }>;

@@ -122,9 +122,11 @@ export async function fetchForLabel(label: string): Promise<AccountUsage> {
   } catch (e) {
     const data = await vault.load();
     const existing = data.accounts[label]?.meta.usage;
-    // Keep showing the last good numbers, but flag them as stale so the UI can
-    // say so instead of presenting an old "updated …" as if it were current.
-    if (existing && existing.fiveHourPct != null) return { ...existing, stale: true };
+    // Keep showing the last good numbers, but flag them stale + carry the reason
+    // so the UI can distinguish "couldn't refresh" from "sign-in expired" (401).
+    if (existing && existing.fiveHourPct != null) {
+      return { ...existing, stale: true, error: friendly((e as Error).message) };
+    }
     return { fetchedAt: Date.now(), error: friendly((e as Error).message) };
   }
 }

@@ -1,5 +1,8 @@
 import { ipcMain, app, BrowserWindow } from "electron";
 import { spawn } from "node:child_process";
+import { promises as fsp } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import * as vault from "../core/vault.js";
 import * as liveusage from "../core/liveusage.js";
 import * as conversations from "../core/conversations.js";
@@ -68,6 +71,20 @@ export function registerIpc(): void {
 
   // Let the renderer drag-resize-less window controls if we go frameless later.
   ipcMain.handle("window:minimize", (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
+
+  // Save a pasted image to a temp PNG and return its path, so the renderer can
+  // type that path into the embedded terminal and Claude Code loads the image.
+  ipcMain.handle("clipboard:saveImage", async (_e, bytes: Uint8Array) => {
+    try {
+      const buf = Buffer.from(bytes);
+      if (!buf.length) return null;
+      const file = path.join(os.tmpdir(), `polyclaude-paste-${Date.now()}.png`);
+      await fsp.writeFile(file, buf);
+      return file;
+    } catch {
+      return null;
+    }
+  });
 }
 
 function launchClaudeInTerminal(cwd?: string): void {

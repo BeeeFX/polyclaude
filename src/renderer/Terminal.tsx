@@ -85,9 +85,32 @@ export function TerminalView({ opts, onExit }: { opts: TermStartOpts; onExit?: (
     });
     ro.observe(host);
 
+    // Image paste: xterm only forwards text, so intercept (capture phase, before
+    // xterm) — if the clipboard holds an image, save it to a temp file and type
+    // its path into the pty, which Claude Code loads as an image.
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          e.preventDefault();
+          e.stopPropagation();
+          const file = items[i].getAsFile();
+          if (!file) return;
+          void file.arrayBuffer().then(async (ab) => {
+            const p = await window.poly.clipboard.saveImage(new Uint8Array(ab));
+            if (p && id != null) window.poly.terminal.write(id, p + " ");
+          });
+          return;
+        }
+      }
+    };
+    host.addEventListener("paste", onPaste, true);
+
     return () => {
       disposed = true;
       ro.disconnect();
+      host.removeEventListener("paste", onPaste, true);
       unsubs.forEach((u) => u());
       if (id != null) window.poly.terminal.kill(id);
       term.dispose();

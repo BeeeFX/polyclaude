@@ -575,7 +575,9 @@ export function App({ result }: { result: DashboardResult }) {
 
   // ---- Dashboard ----------------------------------------------------------
   const u = activeUsage ?? activeMeta?.usage;
-  const usageUnavailable = !!u && (u.error != null || (u.fiveHourPct == null && u.sevenDayPct == null));
+  // Only "unavailable" when there's genuinely no data; a stale value still carries
+  // an error (the reason) but should keep showing its last-good bars.
+  const usageUnavailable = !!u && u.fiveHourPct == null && u.sevenDayPct == null;
   const activePct = u && u.error == null ? u.fiveHourPct ?? null : null;
   const nextAcct = pickNextAccount();
   const runningLow = activePct != null && activePct >= 85 && !!nextAcct;

@@ -30,6 +30,7 @@ const api = {
   },
   conversations: { list: (limit?: number) => ipcRenderer.invoke("conversations:list", limit) },
   claude: { launch: (cwd?: string) => ipcRenderer.invoke("claude:launch", cwd) },
+  clipboard: { saveImage: (bytes: Uint8Array) => ipcRenderer.invoke("clipboard:saveImage", bytes) },
   terminal: {
     available: () => ipcRenderer.invoke("terminal:available"),
     start: (opts: unknown) => ipcRenderer.invoke("terminal:start", opts),

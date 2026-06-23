@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { AccountMeta, AccountUsage, Conversation, Settings, TermStartOpts } from "./types";
 import { ago, cap, level, pctText, resetAt, resetIn } from "./format";
 import { TerminalView } from "./Terminal";
+import { Mascot } from "./Mascot";
 
 const MODELS: Array<{ value: string; label: string }> = [
   { value: "", label: "Default" },
@@ -11,6 +12,12 @@ const MODELS: Array<{ value: string; label: string }> = [
 ];
 const EFFORTS = ["", "low", "medium", "high", "max"];
 const USAGE_POLL_MS = 30_000;
+
+/** A usage error that means the login is no longer valid (needs /login), vs a
+ *  transient "couldn't refresh" staleness. */
+function isAuthError(u?: AccountUsage): boolean {
+  return !!u?.error && /expired|login|401|unauthor|auth|invalid/i.test(u.error);
+}
 
 export function App() {
   const [version, setVersion] = useState("");
@@ -27,6 +34,7 @@ export function App() {
   const [termOpts, setTermOpts] = useState<TermStartOpts>({});
   const [termKey, setTermKey] = useState(0);
   const [sessionLive, setSessionLive] = useState(false);
+  const [renaming, setRenaming] = useState<{ label: string; value: string } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
   const flash = useCallback((msg: string) => {
@@ -123,6 +131,22 @@ export function App() {
     [termAvailable, flash]
   );
 
+  const commitRename = useCallback(async () => {
+    if (!renaming) return;
+    const from = renaming.label;
+    const to = renaming.value.trim();
+    setRenaming(null);
+    if (!to || to === from) return;
+    const r = await window.poly.accounts.rename(from, to);
+    if (r.ok) {
+      await reload();
+      await refreshUsage();
+      flash(`Renamed to ${to}`);
+    } else {
+      flash(r.error);
+    }
+  }, [renaming, reload, refreshUsage, flash]);
+
   if (loadError) {
     return (
       <div className="loading">
@@ -134,7 +158,9 @@ export function App() {
   if (!ready) {
     return (
       <div className="loading">
-        <div className="spinner" />
+        <div className="mascot-pulse">
+          <Mascot size={48} />
+        </div>
         <span>polyclaude</span>
       </div>
     );
@@ -144,7 +170,9 @@ export function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <span className="logo">◆</span>
+          <span className="logo">
+            <Mascot size={22} />
+          </span>
           <span className="word">polyclaude</span>
           <span className="ver">v{version}</span>
         </div>
@@ -156,8 +184,13 @@ export function App() {
               account={a}
               active={a.label === activeLabel}
               switching={switching === a.label}
-              disabled={!!switching}
+              disabled={!!switching || !!renaming}
+              renameValue={renaming?.label === a.label ? renaming.value : null}
               onClick={() => void switchTo(a.label)}
+              onStartRename={() => setRenaming({ label: a.label, value: a.label })}
+              onRenameChange={(v) => setRenaming((r) => (r ? { ...r, value: v } : r))}
+              onRenameCommit={() => void commitRename()}
+              onRenameCancel={() => setRenaming(null)}
             />
           ))}
         </div>
@@ -175,11 +208,15 @@ export function App() {
               {active?.email ?? "no active account"}
               {active?.subscriptionType ? ` · Claude ${cap(active.subscriptionType)}` : ""}
             </p>
-            {usage?.stale && (
+            {isAuthError(usage) ? (
+              <button className="auth-chip" onClick={() => launchClaude({})} title={usage?.error}>
+                ⚠ sign-in expired — open Claude and run /login
+              </button>
+            ) : usage?.stale ? (
               <span className="stale-chip" title={`Last updated ${ago(usage.fetchedAt)}`}>
                 ⟳ usage stale · open Claude to refresh
               </span>
-            )}
+            ) : null}
           </div>
           <div className="top-actions">
             <Dropdown
@@ -216,6 +253,7 @@ export function App() {
               pct={usage?.fiveHourPct}
               reset={resetIn(usage?.fiveHourResetsAt)}
               error={usage?.error}
+              stale={usage?.stale}
               delay={0}
             />
             <UsageCard
@@ -224,6 +262,7 @@ export function App() {
               pct={usage?.sevenDayPct}
               reset={resetAt(usage?.sevenDayResetsAt)}
               error={usage?.error}
+              stale={usage?.stale}
               delay={70}
             />
           </section>
@@ -301,28 +340,83 @@ function AccountRow({
   active,
   switching,
   disabled,
+  renameValue,
   onClick,
+  onStartRename,
+  onRenameChange,
+  onRenameCommit,
+  onRenameCancel,
 }: {
   account: AccountMeta;
   active: boolean;
   switching: boolean;
   disabled: boolean;
+  renameValue: string | null;
   onClick: () => void;
+  onStartRename: () => void;
+  onRenameChange: (v: string) => void;
+  onRenameCommit: () => void;
+  onRenameCancel: () => void;
 }) {
-  const pct = account.usage?.fiveHourPct;
+  const u = account.usage;
+  const renaming = renameValue != null;
   return (
-    <button className={`acct ${active ? "active" : ""}`} onClick={onClick} disabled={disabled && !active}>
+    <div
+      className={`acct ${active ? "active" : ""} ${renaming ? "is-renaming" : ""}`}
+      onClick={() => !renaming && !disabled && onClick()}
+    >
       <span className={`dot ${active ? "on" : ""}`} />
       <span className="acct-main">
-        <span className="acct-label">{account.label}</span>
-        <span className="acct-email">{account.email ?? "—"}</span>
+        {renaming ? (
+          <input
+            className="acct-rename"
+            autoFocus
+            value={renameValue}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onRenameChange(e.target.value)}
+            onBlur={onRenameCommit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onRenameCommit();
+              else if (e.key === "Escape") onRenameCancel();
+            }}
+          />
+        ) : (
+          <>
+            <span className="acct-label">{account.label}</span>
+            <span className="acct-email">{account.email ?? "—"}</span>
+          </>
+        )}
       </span>
-      {switching ? (
-        <span className="mini-spinner" />
-      ) : (
-        <span className={`acct-pct lvl-${level(pct)}`}>{pctText(pct)}</span>
+      {!renaming && (
+        <button
+          className="rename-btn"
+          title="Rename"
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartRename();
+          }}
+        >
+          ✎
+        </button>
       )}
-    </button>
+      {switching ? <span className="mini-spinner" /> : <UsageRing pct={u?.fiveHourPct} warn={isAuthError(u)} />}
+    </div>
+  );
+}
+
+function UsageRing({ pct, warn }: { pct?: number | null; warn?: boolean }) {
+  if (warn) {
+    return (
+      <span className="acct-warn" title="sign-in expired — open Claude to run /login">
+        !
+      </span>
+    );
+  }
+  const v = pct == null ? 0 : Math.max(0, Math.min(100, pct));
+  return (
+    <span className={`ring lvl-${level(pct)}`} style={{ ["--pct"]: v } as CSSProperties}>
+      <span className="ring-num">{pct == null ? "—" : Math.round(v)}</span>
+    </span>
   );
 }
 
@@ -332,6 +426,7 @@ function UsageCard({
   pct,
   reset,
   error,
+  stale,
   delay,
 }: {
   title: string;
@@ -339,26 +434,30 @@ function UsageCard({
   pct?: number | null;
   reset: string;
   error?: string;
+  stale?: boolean;
   delay: number;
 }) {
   const lvl = level(pct);
   const width = pct == null ? 0 : Math.max(2, Math.min(100, pct));
+  const noData = pct == null;
   return (
     <div className="panel card" style={{ animationDelay: `${delay}ms` }}>
       <div className="card-head">
         <span>{title}</span>
         <span className="muted small">{sub}</span>
       </div>
-      {error ? (
-        <p className="muted small err">usage unavailable — open Claude, then it refreshes</p>
+      {noData ? (
+        <p className="muted small err">
+          {error ? "usage unavailable — open Claude to sign in / refresh" : "loading…"}
+        </p>
       ) : (
         <>
-          <div className="bar-track">
+          <div className={`bar-track ${stale ? "is-stale" : ""}`}>
             <div className={`bar-fill lvl-${lvl}`} style={{ width: `${width}%` }} />
           </div>
           <div className="card-foot">
             <span className={`big lvl-${lvl}`}>{pctText(pct)}</span>
-            <span className="muted small">{reset}</span>
+            <span className="muted small">{stale ? "stale · open Claude to refresh" : reset}</span>
           </div>
         </>
       )}
