@@ -54,6 +54,8 @@ first time you sign in — change it any time with `pcc set name <you>`.
   context is preserved.
 - **All local** — nothing is sent anywhere; usage is read from Claude Code's own
   transcripts and rate-limit events.
+- **Two ways to use it** — a CLI/TUI *and* a clean desktop app (Electron) that
+  share the exact same core. See [Desktop app](#desktop-app).
 
 ## How it works
 
@@ -98,6 +100,26 @@ You can also run it without installing, straight from the repo:
 ```sh
 npm run pcc -- <command> [args]
 ```
+
+## Desktop app
+
+Prefer a window over a terminal? polyclaude ships a desktop app (Electron) that
+shares the **exact same core** as the CLI/TUI — switching, the encrypted vault,
+live usage, and settings all run through the same code.
+
+```sh
+npm run gui        # build + launch the desktop app
+npm run gui:dev    # hot-reloading dev mode (Vite + Electron)
+```
+
+What you get today: a clean dark UI with your accounts and per-account usage in
+the sidebar, animated 5h / 7d usage for the active account, one-click account
+switching, model / effort / thinking / auto-switch controls, and your recent
+conversations. The CLI and TUI are unchanged — the GUI is purely additive.
+
+> **Roadmap:** the headline next step is an **embedded terminal** (run Claude Code
+> right inside the window, with image paste), plus in-app sign-in and signed
+> installers. For now, "Launch Claude" opens Claude Code in your terminal.
 
 ## Quick start (beginner-friendly)
 
@@ -256,8 +278,9 @@ them.
 ## Tests
 
 ```sh
-npm test            # typecheck + all smoke tests below
-npm run typecheck   # full TS typecheck
+npm test            # typecheck (CLI + GUI) + all smoke tests below
+npm run typecheck   # full TS typecheck (core/cli/tui + Electron main/preload)
+npm run typecheck:gui    # renderer (React) typecheck
 npm run smoke       # headless render check of the dashboard
 npm run test:statusline  # status-line rendering + install/uninstall
 npm run test:crypto      # at-rest encrypt/decrypt round-trip on this OS
@@ -273,8 +296,10 @@ npm run test:crypto      # at-rest encrypt/decrypt round-trip on this OS
 - [x] In-app sign-in + first-run onboarding (no pre-commands)
 - [x] Conversation history browser (resume past chats)
 - [x] macOS / Linux credential encryption (Keychain · 0600 key-file)
+- [x] Desktop app (Electron) sharing the same core
+- [ ] Embedded terminal in the desktop app (run Claude in-window, paste images)
+- [ ] In-app sign-in from the desktop app + signed installers
 - [ ] Background limit watcher with desktop notifications
-- [ ] Optional VS Code panel sharing the same core
 
 ## Contributing
 

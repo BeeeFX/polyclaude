@@ -47,19 +47,30 @@ export function nameFromEmail(email?: string): string | undefined {
   return pick[0].toUpperCase() + pick.slice(1).toLowerCase();
 }
 
+/** True for a plausible epoch-MS timestamp. Guards against 0, NaN/Infinity, and
+ *  values that are clearly seconds (or otherwise pre-2001), which would otherwise
+ *  render as an absurd "time ago" (e.g. "481507h ago"). 1e12 ms ≈ Sep 2001. */
+function isValidMs(epochMs?: number): boolean {
+  return typeof epochMs === "number" && Number.isFinite(epochMs) && epochMs >= 1e12;
+}
+
 /** Short "time ago" with seconds granularity for the first minute. */
 export function fmtAgoShort(epochMs: number): string {
+  if (!isValidMs(epochMs)) return "—";
   const s = Math.round((Date.now() - epochMs) / 1000);
   if (s < 5) return "just now";
   if (s < 60) return `${Math.min(55, Math.round(s / 5) * 5)}s ago`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
-  return `${h}h ago`;
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 }
 
 /** Human-friendly "time ago" for a past epoch-ms timestamp. */
 export function fmtAgo(epochMs: number): string {
+  if (!isValidMs(epochMs)) return "—";
   const ms = Date.now() - epochMs;
   if (ms < 60_000) return "just now";
   const m = Math.floor(ms / 60_000);
