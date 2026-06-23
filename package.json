@@ -31,14 +31,14 @@
     "README.md",
     "LICENSE"
   ],
-  "os": [
-    "win32"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli/index.ts",
     "pcc": "tsx src/cli/index.ts",
     "smoke": "tsx test/tui-smoke.tsx",
+    "test:statusline": "tsx test/statusline-smoke.ts",
+    "test:crypto": "tsx test/crypto-smoke.ts",
+    "test": "npm run typecheck && npm run smoke && npm run test:statusline && npm run test:crypto",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build"
   },

@@ -9,8 +9,8 @@ because Claude Code stores your transcript locally and resends it each turn. The
 account only governs auth and billing, so swapping it mid-conversation just
 changes *who pays* while your context carries on.
 
-> **Platform:** Windows (credential encryption uses DPAPI). macOS/Linux key
-> storage is on the roadmap.
+> **Platform:** Windows, macOS, and Linux. Credentials are protected at rest the
+> same way Claude Code protects its own — see [Platform support](#platform-support).
 
 > **Disclaimer:** polyclaude is an unofficial, community project and is **not
 > affiliated with, authorized, or endorsed by Anthropic**. It talks to
@@ -43,7 +43,8 @@ first time you sign in — change it any time with `pcc set name <you>`.
 ## Highlights
 
 - **Encrypted multi-account vault** — store many logged-in accounts; tokens are
-  encrypted at rest with Windows DPAPI (per-user, no master password).
+  encrypted at rest per-OS (Windows DPAPI · macOS Keychain · Linux key-file), with
+  no master password to manage. See [Platform support](#platform-support).
 - **One-key switch** — flip the active account; resume your chat with `claude -c`.
 - **Live usage dashboard** (Ink TUI) — rolling 5-hour / 7-day token usage per
   account, authoritative rate-limit status + reset times, and model / effort /
@@ -56,8 +57,10 @@ first time you sign in — change it any time with `pcc set name <you>`.
 
 ## How it works
 
-- Claude Code keeps the active account in `~/.claude/.credentials.json` (an OAuth
-  blob). On Windows this file is the source of truth — no competing OS vault.
+- Claude Code keeps the active account where the OS keeps it: the
+  `~/.claude/.credentials.json` file on Windows/Linux, and the login Keychain on
+  macOS (with the same file as a fallback). polyclaude reads and writes whichever
+  applies — see [Platform support](#platform-support).
 - polyclaude keeps an encrypted vault (`~/.polyclaude/vault.json`) of several
   blobs and swaps the active one on demand (backing up the previous first).
 - **Plan usage** (current-session and weekly **percentages** + reset times) is
@@ -85,7 +88,7 @@ typing `claude`:
 npm link                # registers global `polyclaude` and `pcc` commands
 ```
 
-Now open any PowerShell window and run `polyclaude`. After pulling updates,
+Now open any terminal and run `polyclaude`. After pulling updates,
 `npm run build` refreshes the global command (it points at the build). Remove it
 later with `npm uninstall -g polyclaude`. Prefer a fixed copy over a live link?
 Use `npm install -g .` instead.
@@ -132,7 +135,7 @@ Prefer commands? They still exist: `pcc login`, `pcc add <label>`.
 | `pcc chat` | Multi-turn chat that keeps context and auto-switches |
 | `pcc probe` | Tiny call to refresh the active account's live limit status |
 | `pcc launch` / `pcc code` | Launch interactive Claude Code with your saved settings |
-| `pcc statusline [--install]` | Show every account's usage in Claude Code's status line |
+| `pcc statusline [--install] [--uninstall] [--force]` | Show every account's usage in Claude Code's status line |
 | `pcc config` | Show settings |
 | `pcc set <key> <value>` | Set model / effort / thinking / autoswitch / budgets |
 | `pcc order <labels...>` | Set the failover order |
@@ -167,15 +170,20 @@ Code's status line:
 pcc statusline --install
 ```
 
+polyclaude also **offers to set this up on first run** — the dashboard asks once
+whether to show its usage inside Claude Code, so you don't have to remember the
+command. You can always toggle it manually with `--install` / `--uninstall`.
+
 Now the bottom of Claude Code shows two rows:
 
 ```
-polyclaude ● work 92% · ○ personal 12%  · 5h
+polyclaude ● work 92% · ○ personal 12%  · 5h · work 7d 88%
   ↳ to switch account: exit Claude (Ctrl+C twice) → press g
 ```
 
 The first row is every account's 5h usage (active account in bold; red/yellow/green
-by level). The second is a reminder of how to switch accounts mid-chat — **exit Claude
+by level), plus the active account's **weekly (7d)** usage — the window that bites
+Max users. The second is a reminder of how to switch accounts mid-chat — **exit Claude
 first** (press `Ctrl+C` twice), then press `g` to continue this conversation on another
 account. Those keys act in polyclaude, not inside Claude (Claude has the keyboard while
 you're chatting), which is why switching means briefly stepping out.
@@ -187,6 +195,10 @@ reminds you to `run polyclaude` first. When the active account nears its
 
 It reads cached usage and refreshes the active account at most once every ~90s, so it
 never hammers the API.
+
+Remove it any time with `pcc statusline --uninstall` (this only touches polyclaude's own
+entry — a custom status line you'd set up yourself is left alone, and `--install` won't
+overwrite one without `--force`).
 
 Prefer a separate view? Run `pcc usage --all --watch` in a split pane.
 
@@ -201,18 +213,33 @@ pcc set budget5h 50000000   # optional cap to turn usage into % bars
 pcc order work personal     # failover preference order
 ```
 
+## Platform support
+
+polyclaude runs on **Windows, macOS, and Linux**, and protects stored credentials
+at rest the same way Claude Code protects its own:
+
+| OS | polyclaude vault (`~/.polyclaude/vault.json`) | Active account (what Claude reads) |
+| --- | --- | --- |
+| **Windows** | DPAPI, per-user (decryptable only by your Windows user on this machine) | `~/.claude/.credentials.json` (plaintext, Claude Code's design) |
+| **macOS** | AES-256-GCM; the key lives in your login **Keychain** | the **Keychain** item `Claude Code-credentials` — polyclaude updates it **and** writes `~/.claude/.credentials.json` (Claude's fallback), reading the file first to avoid a Keychain prompt |
+| **Linux** | AES-256-GCM; the key is a `0600` file at `~/.polyclaude/vault.key` | `~/.claude/.credentials.json` (mode `0600`) |
+
+On macOS, reading the Keychain may show a one-time permission prompt the first
+time polyclaude captures your signed-in account; after that it works off the file.
+
 ## Data & security
 
-- Vault: `~/.polyclaude/vault.json` — every account's credentials are
-  DPAPI-encrypted (decryptable only by your Windows user on this machine).
-  Tokens are **never** written to disk in plaintext by polyclaude.
+- Vault: `~/.polyclaude/vault.json` — every account's credentials are encrypted at
+  rest (see the table above). Tokens are **never** written to disk in plaintext by
+  polyclaude.
 - Before switching, the currently-signed-in account is captured into the
   encrypted vault if it isn't already there, so a switch can't lose an account —
   there are no plaintext backup files.
 - Switch log (for usage attribution): `~/.polyclaude/switches.jsonl`.
 - Settings: `~/.polyclaude/settings.json`.
-- The live active account lives in Claude Code's own `~/.claude/.credentials.json`
-  (plaintext, by Claude Code's design — not something polyclaude controls).
+- The live active account is owned by Claude Code (the file is plaintext by its
+  design on Windows/Linux; the Keychain on macOS) — polyclaude reads/writes it but
+  doesn't change how Claude stores it.
 
 ## A note on usage limits
 
@@ -229,8 +256,11 @@ them.
 ## Tests
 
 ```sh
+npm test            # typecheck + all smoke tests below
 npm run typecheck   # full TS typecheck
 npm run smoke       # headless render check of the dashboard
+npm run test:statusline  # status-line rendering + install/uninstall
+npm run test:crypto      # at-rest encrypt/decrypt round-trip on this OS
 ```
 
 ## Roadmap
@@ -242,7 +272,7 @@ npm run smoke       # headless render check of the dashboard
 - [x] TUI dashboard with model / effort / thinking toggles
 - [x] In-app sign-in + first-run onboarding (no pre-commands)
 - [x] Conversation history browser (resume past chats)
-- [ ] macOS / Linux credential encryption
+- [x] macOS / Linux credential encryption (Keychain · 0600 key-file)
 - [ ] Background limit watcher with desktop notifications
 - [ ] Optional VS Code panel sharing the same core
 

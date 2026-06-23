@@ -106,11 +106,17 @@ export async function fetchForLabel(label: string): Promise<AccountUsage> {
     await vault.updateMeta(label, { usage });
     // For the active account, keep the vault's stored credentials in sync with
     // the live file — so reconnecting via `claude auth login` updates this entry
-    // (no duplicate) and switching back later won't restore a stale token.
+    // (no duplicate) and switching back later won't restore a stale token. But
+    // only when the token actually rotated: the live `expiresAt` differs from the
+    // one we recorded. Tokens last ~8h, so without this guard a status line would
+    // spawn a DPAPI encrypt + extra vault write on every ~90s refresh for no gain.
     const data = await vault.load();
     if (data.activeLabel === label) {
       const live = await credentials.readActive();
-      if (live) await vault.replaceCredentials(label, live).catch(() => {});
+      const storedExpiresAt = data.accounts[label]?.meta.expiresAt;
+      if (live && live.claudeAiOauth.expiresAt !== storedExpiresAt) {
+        await vault.replaceCredentials(label, live).catch(() => {});
+      }
     }
     return usage;
   } catch (e) {

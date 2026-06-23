@@ -43,7 +43,7 @@ program.action(async () => {
 });
 
 if (!isSupported()) {
-  fail("polyclaude currently requires Windows (uses DPAPI for at-rest credential encryption).");
+  fail(`polyclaude doesn't support ${process.platform} yet (no at-rest credential store).`);
   process.exit(1);
 }
 

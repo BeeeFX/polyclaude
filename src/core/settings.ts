@@ -21,6 +21,8 @@ export interface Settings {
   /** Optional token caps purely for the dashboard's % bars (real plan caps aren't exposed locally). */
   budget5hTokens?: number;
   budget7dTokens?: number;
+  /** Whether we've already offered to install the Claude Code status line (so we ask once). */
+  statuslineOffered?: boolean;
 }
 
 export const MODELS = ["opus", "sonnet", "haiku"] as const;
