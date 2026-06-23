@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AccountMeta, AccountUsage, Conversation, Settings } from "./types";
+import type { AccountMeta, AccountUsage, Conversation, Settings, TermStartOpts } from "./types";
 import { ago, cap, level, pctText, resetAt, resetIn } from "./format";
+import { TerminalView } from "./Terminal";
 
 const MODELS: Array<{ value: string; label: string }> = [
   { value: "", label: "Default" },
@@ -20,6 +21,11 @@ export function App() {
   const [switching, setSwitching] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [view, setView] = useState<"home" | "claude">("home");
+  const [termAvailable, setTermAvailable] = useState(true);
+  const [termOpts, setTermOpts] = useState<TermStartOpts>({});
+  const [termKey, setTermKey] = useState(0);
+  const [sessionLive, setSessionLive] = useState(false);
   const toastTimer = useRef<number | undefined>(undefined);
 
   const flash = useCallback((msg: string) => {
@@ -55,6 +61,7 @@ export function App() {
       await reload();
       setReady(true);
       void window.poly.conversations.list(6).then(setConvos);
+      void window.poly.terminal.available().then(setTermAvailable);
       void refreshUsage();
     })();
     const id = window.setInterval(refreshUsage, USAGE_POLL_MS);
@@ -77,19 +84,38 @@ export function App() {
       if (r.ok) {
         await reload();
         await refreshUsage();
-        flash(`Switched to ${label}`);
+        flash(
+          sessionLive
+            ? `Switched to ${label} · Restart the session to use it`
+            : `Switched to ${label}`
+        );
       } else {
         flash(r.error);
       }
       setSwitching(null);
     },
-    [activeLabel, switching, reload, refreshUsage, flash]
+    [activeLabel, switching, reload, refreshUsage, flash, sessionLive]
   );
 
   const patchSettings = useCallback(async (patch: Partial<Settings>) => {
     const next = await window.poly.settings.update(patch);
     setSettings(next);
   }, []);
+
+  const launchClaude = useCallback(
+    (opts: TermStartOpts) => {
+      if (!termAvailable) {
+        void window.poly.claude.launch(opts.cwd);
+        flash("Opened Claude in your terminal (embedded terminal unavailable here).");
+        return;
+      }
+      setTermOpts(opts);
+      setTermKey((k) => k + 1); // remount = fresh session
+      setSessionLive(true);
+      setView("claude");
+    },
+    [termAvailable, flash]
+  );
 
   if (!ready) {
     return (
@@ -135,6 +161,11 @@ export function App() {
               {active?.email ?? "no active account"}
               {active?.subscriptionType ? ` · Claude ${cap(active.subscriptionType)}` : ""}
             </p>
+            {usage?.stale && (
+              <span className="stale-chip" title={`Last updated ${ago(usage.fetchedAt)}`}>
+                ⟳ usage stale · open Claude to refresh
+              </span>
+            )}
           </div>
           <div className="top-actions">
             <Dropdown
@@ -143,68 +174,107 @@ export function App() {
               options={MODELS}
               onChange={(v) => void patchSettings({ model: v })}
             />
-            <button className="primary" onClick={() => void window.poly.claude.launch()}>
+            <button className="primary" onClick={() => launchClaude({})}>
               Launch Claude →
             </button>
           </div>
         </header>
 
-        <section className="cards">
-          <UsageCard
-            title="Current session"
-            sub="5-hour window"
-            pct={usage?.fiveHourPct}
-            reset={resetIn(usage?.fiveHourResetsAt)}
-            error={usage?.error}
-            delay={0}
-          />
-          <UsageCard
-            title="Weekly"
-            sub="all models · 7-day"
-            pct={usage?.sevenDayPct}
-            reset={resetAt(usage?.sevenDayResetsAt)}
-            error={usage?.error}
-            delay={70}
-          />
-        </section>
+        <div className="tabs">
+          <button className={`tab ${view === "home" ? "on" : ""}`} onClick={() => setView("home")}>
+            Home
+          </button>
+          <button
+            className={`tab ${view === "claude" ? "on" : ""}`}
+            onClick={() => sessionLive && setView("claude")}
+            disabled={!sessionLive}
+          >
+            Claude {sessionLive ? <span className="live-dot" /> : null}
+          </button>
+        </div>
 
-        <section className="panel controls" style={{ animationDelay: "140ms" }}>
-          <div className="panel-head">Session defaults</div>
-          <div className="control-row">
-            <Dropdown
-              label="Model"
-              value={settings?.model ?? ""}
-              options={MODELS}
-              onChange={(v) => void patchSettings({ model: v })}
+        {/* Home pane (hidden, not unmounted, so a running session survives a peek) */}
+        <div className="pane home-pane" style={{ display: view === "home" ? "flex" : "none" }}>
+          <section className="cards">
+            <UsageCard
+              title="Current session"
+              sub="5-hour window"
+              pct={usage?.fiveHourPct}
+              reset={resetIn(usage?.fiveHourResetsAt)}
+              error={usage?.error}
+              delay={0}
             />
-            <Dropdown
-              label="Effort"
-              value={settings?.effort ?? ""}
-              options={EFFORTS.map((e) => ({ value: e, label: e ? cap(e) : "Default" }))}
-              onChange={(v) => void patchSettings({ effort: v as Settings["effort"] })}
+            <UsageCard
+              title="Weekly"
+              sub="all models · 7-day"
+              pct={usage?.sevenDayPct}
+              reset={resetAt(usage?.sevenDayResetsAt)}
+              error={usage?.error}
+              delay={70}
             />
-            <Toggle label="Extended thinking" on={!!settings?.thinking} onClick={() => void patchSettings({ thinking: !settings?.thinking })} />
-            <Toggle label="Auto-switch on limit" on={!!settings?.autoSwitch} onClick={() => void patchSettings({ autoSwitch: !settings?.autoSwitch })} />
+          </section>
+
+          <section className="panel controls" style={{ animationDelay: "140ms" }}>
+            <div className="panel-head">Session defaults</div>
+            <div className="control-row">
+              <Dropdown
+                label="Model"
+                value={settings?.model ?? ""}
+                options={MODELS}
+                onChange={(v) => void patchSettings({ model: v })}
+              />
+              <Dropdown
+                label="Effort"
+                value={settings?.effort ?? ""}
+                options={EFFORTS.map((e) => ({ value: e, label: e ? cap(e) : "Default" }))}
+                onChange={(v) => void patchSettings({ effort: v as Settings["effort"] })}
+              />
+              <Toggle label="Extended thinking" on={!!settings?.thinking} onClick={() => void patchSettings({ thinking: !settings?.thinking })} />
+              <Toggle label="Auto-switch on limit" on={!!settings?.autoSwitch} onClick={() => void patchSettings({ autoSwitch: !settings?.autoSwitch })} />
+            </div>
+          </section>
+
+          <section className="panel recent" style={{ animationDelay: "210ms" }}>
+            <div className="panel-head">Recent conversations</div>
+            {convos.length === 0 ? (
+              <p className="muted">No conversations yet.</p>
+            ) : (
+              <ul className="convos">
+                {convos.map((c) => (
+                  <li key={c.sessionId} className="convo" onClick={() => launchClaude({ resumeId: c.sessionId, cwd: c.cwd })}>
+                    <span className="convo-title">{c.title}</span>
+                    <span className="convo-meta">
+                      {ago(c.mtime)} · {c.messages} msgs
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        {/* Claude pane — kept mounted while a session is live */}
+        {sessionLive && (
+          <div className="pane claude-pane" style={{ display: view === "claude" ? "flex" : "none" }}>
+            <div className="term-toolbar">
+              <span className="muted small">
+                Running on <b className="run-acct">{activeLabel}</b>
+              </span>
+              <div className="term-actions">
+                <button className="ghost" onClick={() => launchClaude({ resume: true })} title="Restart this conversation on the active account">
+                  ⟳ Restart
+                </button>
+                <button className="ghost" onClick={() => launchClaude({})}>
+                  + New session
+                </button>
+                <button className="ghost danger" onClick={() => { setSessionLive(false); setView("home"); }}>
+                  Stop
+                </button>
+              </div>
+            </div>
+            <TerminalView key={termKey} opts={termOpts} onExit={() => undefined} />
           </div>
-        </section>
-
-        <section className="panel recent" style={{ animationDelay: "210ms" }}>
-          <div className="panel-head">Recent conversations</div>
-          {convos.length === 0 ? (
-            <p className="muted">No conversations yet.</p>
-          ) : (
-            <ul className="convos">
-              {convos.map((c) => (
-                <li key={c.sessionId} className="convo" onClick={() => void window.poly.claude.launch(c.cwd)}>
-                  <span className="convo-title">{c.title}</span>
-                  <span className="convo-meta">
-                    {ago(c.mtime)} · {c.messages} msgs
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        )}
       </main>
 
       <div className={`toast ${toast ? "show" : ""}`}>{toast}</div>

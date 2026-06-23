@@ -8,6 +8,7 @@ export interface AccountUsage {
   sevenDayResetsAt?: number;
   fetchedAt: number;
   error?: string;
+  stale?: boolean;
 }
 
 export interface AccountMeta {
@@ -67,4 +68,21 @@ export interface PolyApi {
   };
   conversations: { list(limit?: number): Promise<Conversation[]> };
   claude: { launch(cwd?: string): Promise<Result> };
+  terminal: {
+    available(): Promise<boolean>;
+    start(opts: TermStartOpts): Promise<{ ok: true; id: number } | { ok: false; error: string }>;
+    write(id: number, data: string): void;
+    resize(id: number, cols: number, rows: number): void;
+    kill(id: number): void;
+    onData(cb: (p: { id: number; data: string }) => void): () => void;
+    onExit(cb: (p: { id: number; exitCode: number }) => void): () => void;
+  };
+}
+
+export interface TermStartOpts {
+  cols?: number;
+  rows?: number;
+  cwd?: string;
+  resume?: boolean;
+  resumeId?: string;
 }

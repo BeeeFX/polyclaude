@@ -122,7 +122,9 @@ export async function fetchForLabel(label: string): Promise<AccountUsage> {
   } catch (e) {
     const data = await vault.load();
     const existing = data.accounts[label]?.meta.usage;
-    if (existing && existing.fiveHourPct != null) return existing; // keep last good
+    // Keep showing the last good numbers, but flag them as stale so the UI can
+    // say so instead of presenting an old "updated …" as if it were current.
+    if (existing && existing.fiveHourPct != null) return { ...existing, stale: true };
     return { fetchedAt: Date.now(), error: friendly((e as Error).message) };
   }
 }

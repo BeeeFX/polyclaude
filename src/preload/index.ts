@@ -25,6 +25,23 @@ const api = {
   },
   conversations: { list: (limit?: number) => ipcRenderer.invoke("conversations:list", limit) },
   claude: { launch: (cwd?: string) => ipcRenderer.invoke("claude:launch", cwd) },
+  terminal: {
+    available: () => ipcRenderer.invoke("terminal:available"),
+    start: (opts: unknown) => ipcRenderer.invoke("terminal:start", opts),
+    write: (id: number, data: string) => ipcRenderer.send("terminal:input", { id, data }),
+    resize: (id: number, cols: number, rows: number) => ipcRenderer.send("terminal:resize", { id, cols, rows }),
+    kill: (id: number) => ipcRenderer.send("terminal:kill", { id }),
+    onData: (cb: (p: { id: number; data: string }) => void) => {
+      const h = (_e: unknown, p: { id: number; data: string }) => cb(p);
+      ipcRenderer.on("terminal:data", h);
+      return () => ipcRenderer.removeListener("terminal:data", h);
+    },
+    onExit: (cb: (p: { id: number; exitCode: number }) => void) => {
+      const h = (_e: unknown, p: { id: number; exitCode: number }) => cb(p);
+      ipcRenderer.on("terminal:exit", h);
+      return () => ipcRenderer.removeListener("terminal:exit", h);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld("poly", api);

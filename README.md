@@ -112,14 +112,24 @@ npm run gui        # build + launch the desktop app
 npm run gui:dev    # hot-reloading dev mode (Vite + Electron)
 ```
 
-What you get today: a clean dark UI with your accounts and per-account usage in
-the sidebar, animated 5h / 7d usage for the active account, one-click account
+What you get: a clean dark UI with your accounts and per-account usage in the
+sidebar, animated 5h / 7d usage for the active account, one-click account
 switching, model / effort / thinking / auto-switch controls, and your recent
 conversations. The CLI and TUI are unchanged — the GUI is purely additive.
 
-> **Roadmap:** the headline next step is an **embedded terminal** (run Claude Code
-> right inside the window, with image paste), plus in-app sign-in and signed
-> installers. For now, "Launch Claude" opens Claude Code in your terminal.
+**Claude runs *inside* the window.** "Launch Claude" (or clicking a recent
+conversation) opens the full Claude Code TUI in an embedded terminal
+(xterm.js + a real pty via `node-pty`), so you get the complete experience —
+including image paste — without leaving the app. The account sidebar stays
+visible the whole time, so you can switch accounts mid-session; because a running
+session holds its token in memory, a one-click **Restart** resumes the same
+conversation on the newly-selected account.
+
+> `node-pty` ships N-API prebuilt binaries, so no native compiler is needed. If
+> the binary ever can't load on your platform, the app degrades gracefully and
+> falls back to opening Claude in your system terminal.
+
+> **Roadmap:** in-app sign-in (add accounts from the GUI) and signed installers.
 
 ## Quick start (beginner-friendly)
 
@@ -297,7 +307,7 @@ npm run test:crypto      # at-rest encrypt/decrypt round-trip on this OS
 - [x] Conversation history browser (resume past chats)
 - [x] macOS / Linux credential encryption (Keychain · 0600 key-file)
 - [x] Desktop app (Electron) sharing the same core
-- [ ] Embedded terminal in the desktop app (run Claude in-window, paste images)
+- [x] Embedded terminal in the desktop app (run Claude in-window, paste images)
 - [ ] In-app sign-in from the desktop app + signed installers
 - [ ] Background limit watcher with desktop notifications
 

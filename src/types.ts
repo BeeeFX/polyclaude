@@ -36,6 +36,9 @@ export interface AccountUsage {
   /** epoch ms when this was fetched */
   fetchedAt: number;
   error?: string;
+  /** true when this is a last-good cached value we couldn't refresh (e.g. the
+   *  active account's token expired — Claude Code must refresh it on next use). */
+  stale?: boolean;
 }
 
 /** Non-secret metadata we keep for display/selection. */

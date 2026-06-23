@@ -675,9 +675,13 @@ export function App({ result }: { result: DashboardResult }) {
           <Text bold>
             Plan usage <Text dimColor>· {planName}</Text>
           </Text>
-          <Text dimColor>
-            {busy ? "updating…" : u?.fetchedAt ? `updated ${fmtAgoShort(u.fetchedAt)}` : ""}
-          </Text>
+          {busy ? (
+            <Text dimColor>updating…</Text>
+          ) : u?.stale ? (
+            <Text color="yellow">stale · {fmtAgoShort(u.fetchedAt)} — open Claude to refresh</Text>
+          ) : u?.fetchedAt ? (
+            <Text dimColor>updated {fmtAgoShort(u.fetchedAt)}</Text>
+          ) : null}
         </Box>
         {!u ? (
           <Text dimColor>loading usage…</Text>

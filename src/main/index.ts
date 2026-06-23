@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerIpc } from "./ipc.js";
+import { registerTerminalIpc } from "./terminal.js";
 
 /**
  * Electron main process. It reuses polyclaude's existing Node core directly
@@ -48,6 +49,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerIpc();
+  registerTerminalIpc();
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
