@@ -21,6 +21,7 @@ export function App() {
   const [switching, setSwitching] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<"home" | "claude">("home");
   const [termAvailable, setTermAvailable] = useState(true);
   const [termOpts, setTermOpts] = useState<TermStartOpts>({});
@@ -56,13 +57,18 @@ export function App() {
 
   useEffect(() => {
     void (async () => {
-      const info = await window.poly.app.info();
-      setVersion(info.version);
-      await reload();
-      setReady(true);
-      void window.poly.conversations.list(6).then(setConvos);
-      void window.poly.terminal.available().then(setTermAvailable);
-      void refreshUsage();
+      try {
+        if (!window.poly) throw new Error("bridge unavailable (preload failed to load)");
+        const info = await window.poly.app.info();
+        setVersion(info.version);
+        await reload();
+        setReady(true);
+        void window.poly.conversations.list(6).then(setConvos);
+        void window.poly.terminal.available().then(setTermAvailable);
+        void refreshUsage();
+      } catch (e) {
+        setLoadError((e as Error).message);
+      }
     })();
     const id = window.setInterval(refreshUsage, USAGE_POLL_MS);
     return () => window.clearInterval(id);
@@ -117,6 +123,14 @@ export function App() {
     [termAvailable, flash]
   );
 
+  if (loadError) {
+    return (
+      <div className="loading">
+        <span style={{ color: "var(--high)", fontWeight: 600 }}>polyclaude couldn't start</span>
+        <span className="small" style={{ maxWidth: 420, textAlign: "center" }}>{loadError}</span>
+      </div>
+    );
+  }
   if (!ready) {
     return (
       <div className="loading">

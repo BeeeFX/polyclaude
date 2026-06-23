@@ -26,7 +26,7 @@ function createWindow(): void {
     show: false,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     webPreferences: {
-      preload: path.join(dir, "../preload/index.js"),
+      preload: path.join(dir, "../preload/index.cjs"),
       contextIsolation: true,
       sandbox: false,
     },

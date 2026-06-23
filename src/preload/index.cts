@@ -4,6 +4,11 @@ import { contextBridge, ipcRenderer } from "electron";
  * Safe, typed surface exposed to the renderer as `window.poly`. The renderer has
  * no Node access (contextIsolation on); everything goes through these channels,
  * which map 1:1 to the handlers in main/ipc.ts.
+ *
+ * This is a `.cts` file on purpose: Electron loads a plain `.js` preload as
+ * CommonJS, but our package is `type: module`, so a compiled `.js` would contain
+ * ESM syntax and fail to load (leaving `window.poly` undefined). `.cts` compiles
+ * to a real CommonJS `.cjs`, which Electron's preload loader handles reliably.
  */
 const api = {
   app: { info: () => ipcRenderer.invoke("app:info") },
