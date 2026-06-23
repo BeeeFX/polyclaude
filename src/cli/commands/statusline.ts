@@ -24,6 +24,28 @@ function tintPct(pct?: number | null): string {
   return pct >= 90 ? A(s, "31") : pct >= 75 ? A(s, "33") : A(s, "32");
 }
 
+// When the active account is this close to its 5h limit, the hint turns into a
+// near-limit warning (matches the dashboard's own ≥85% warning prompt).
+const NUDGE_AT = 85;
+
+/** Second status-line row: a reminder of how to switch accounts. The keys act in
+ *  polyclaude, not inside Claude (Claude owns the keyboard while you're chatting),
+ *  so this is an honest "how to act" hint, not a live hotkey. */
+function renderHint(activeLabel: string | undefined, activePct?: number | null): string {
+  // When Claude was launched from polyclaude (POLYCLAUDE_HOST set, inherited
+  // through Claude into this status-line process), exiting Claude drops straight
+  // back to the dashboard — so the user just presses `g`. Launched directly,
+  // they need to open polyclaude first.
+  const exit = "exit Claude (Ctrl+C twice)";
+  const flow = process.env.POLYCLAUDE_HOST ? `${exit} → press g` : `${exit} → run polyclaude → g`;
+  if (activePct != null && activePct >= NUDGE_AT) {
+    const code = activePct >= 90 ? "31" : "33";
+    const who = activeLabel ? `${activeLabel} ` : "";
+    return `  ${A(`⚠ ${who}near limit — to switch: ${flow}`, code)}`;
+  }
+  return `  ${A("↳", "35")} ${A(`to switch account: ${flow}`, "90")}`;
+}
+
 async function renderLine(): Promise<string> {
   const data = await vault.load();
   if (Object.keys(data.accounts).length === 0) return "";
@@ -43,7 +65,12 @@ async function renderLine(): Promise<string> {
     const name = active ? A(m.label, "1") : A(m.label, "90");
     return `${dot} ${name} ${tintPct(m.usage?.fiveHourPct)}`;
   });
-  return `${A("polyclaude", "35")} ${parts.join(A(" · ", "90"))}${A("  · 5h", "90")}`;
+  const usage = `${A("polyclaude", "35")} ${parts.join(A(" · ", "90"))}${A("  · 5h", "90")}`;
+
+  const activePct = data.activeLabel
+    ? metas.find((m) => m.label === data.activeLabel)?.usage?.fiveHourPct
+    : null;
+  return `${usage}\n${renderHint(data.activeLabel, activePct)}`;
 }
 
 async function install(): Promise<void> {
@@ -58,13 +85,17 @@ async function install(): Promise<void> {
       return;
     }
   }
-  settings.statusLine = { type: "command", command: "polyclaude statusline" };
+  // refreshInterval keeps usage current while the session is idle (Claude's own
+  // event-driven update only fires on assistant messages). Safe to refresh often:
+  // renderLine throttles the live fetch to ~90s and otherwise reads cached usage.
+  settings.statusLine = { type: "command", command: "polyclaude statusline", refreshInterval: 60 };
   await fs.mkdir(CLAUDE_DIR, { recursive: true });
   await fs.writeFile(file, JSON.stringify(settings, null, 2));
   ok(`Installed the polyclaude status line into ${file}.`);
   console.log(
     c.dim(
-      "  Open Claude Code and you'll see every account's usage at the bottom.\n" +
+      "  Open Claude Code and you'll see every account's usage at the bottom,\n" +
+        "  plus a reminder of how to switch accounts mid-chat.\n" +
         "  Remove it by deleting the \"statusLine\" key from that file."
     )
   );

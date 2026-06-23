@@ -167,9 +167,26 @@ Code's status line:
 pcc statusline --install
 ```
 
-Now the bottom of Claude Code shows e.g. `polyclaude ● work 92% · ○ personal 12% · 5h`
-(active account in bold; red/yellow/green by level). It reads cached usage and
-refreshes the active account at most once every ~90s, so it never hammers the API.
+Now the bottom of Claude Code shows two rows:
+
+```
+polyclaude ● work 92% · ○ personal 12%  · 5h
+  ↳ to switch account: exit Claude (Ctrl+C twice) → press g
+```
+
+The first row is every account's 5h usage (active account in bold; red/yellow/green
+by level). The second is a reminder of how to switch accounts mid-chat — **exit Claude
+first** (press `Ctrl+C` twice), then press `g` to continue this conversation on another
+account. Those keys act in polyclaude, not inside Claude (Claude has the keyboard while
+you're chatting), which is why switching means briefly stepping out.
+
+If you launched Claude from the polyclaude dashboard, exiting drops you right back into
+it, so the hint just says "press g". If you started Claude on its own, the hint instead
+reminds you to `run polyclaude` first. When the active account nears its
+5h limit (≥85%) the hint turns into a near-limit warning.
+
+It reads cached usage and refreshes the active account at most once every ~90s, so it
+never hammers the API.
 
 Prefer a separate view? Run `pcc usage --all --watch` in a split pane.
 
