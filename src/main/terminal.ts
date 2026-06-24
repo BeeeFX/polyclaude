@@ -2,7 +2,6 @@ import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
 import type { IPty } from "node-pty";
 import { resolveClaudeBin } from "../core/claude.js";
 import * as settings from "../core/settings.js";
-import { setActiveSessionBusy } from "../core/liveusage.js";
 
 /**
  * Runs Claude Code inside the desktop app via a real pseudo-terminal (node-pty),
@@ -42,12 +41,6 @@ async function getPty(): Promise<typeof import("node-pty") | null> {
 const sessions = new Map<number, { pty: IPty; wc: WebContents }>();
 let nextId = 1;
 
-/** Tell liveusage whether a Claude session is live on the active account, so it
- *  won't refresh that account's token out from under the running process. */
-function syncBusy(): void {
-  setActiveSessionBusy(sessions.size > 0);
-}
-
 async function buildArgs(opts: StartOpts): Promise<{ args: string[]; env: NodeJS.ProcessEnv }> {
   const s = await settings.load();
   const args: string[] = [];
@@ -82,14 +75,12 @@ async function start(event: IpcMainInvokeEvent, opts: StartOpts): Promise<StartR
 
   const id = nextId++;
   sessions.set(id, { pty: term, wc });
-  syncBusy();
 
   term.onData((data) => {
     if (!wc.isDestroyed()) wc.send("terminal:data", { id, data });
   });
   term.onExit(({ exitCode }) => {
     sessions.delete(id);
-    syncBusy();
     if (!wc.isDestroyed()) wc.send("terminal:exit", { id, exitCode });
   });
 
@@ -102,7 +93,6 @@ function kill(id: number): void {
   const s = sessions.get(id);
   if (!s) return;
   sessions.delete(id);
-  syncBusy();
   try {
     s.pty.kill();
   } catch {

@@ -13,10 +13,11 @@ import type { AccountUsage, CredentialsFile } from "../types.js";
  * rate-limited. When a refresh fails we back off and keep showing the last
  * known usage instead of hammering.
  *
- * The active account is refreshed too (so usage updates without "open Claude"),
- * EXCEPT while polyclaude is running a Claude session on it (see
- * setActiveSessionBusy) — then we leave the rotating token to the live process.
- * Refreshed tokens are written back to .credentials.json so Claude stays in sync.
+ * The ACTIVE account's token is NEVER refreshed by polyclaude — Claude Code owns
+ * it (the refresh token rotates, and competing over it rate-limits the token
+ * endpoint / can invalidate the login). When the active token is expired we just
+ * show the last-known numbers; Claude Code refreshes it the next time you use it.
+ * Only INACTIVE accounts (whose tokens polyclaude fully manages) are refreshed.
  */
 
 const REFRESH_BACKOFF_MS = 10 * 60_000; // after a failed refresh, wait before retrying
@@ -24,15 +25,6 @@ const backoffUntil = new Map<string, number>();
 /** Friendly reason of the last refresh failure per label, so we keep reporting
  *  the real cause (e.g. "sign in again") while backed off. */
 const lastFailReason = new Map<string, string>();
-
-/** True while polyclaude is itself running a Claude session on the active account
- *  (set by the desktop app's pty manager). We avoid refreshing the active token
- *  during that window so we don't race the live process over the rotating token;
- *  when idle it's safe for polyclaude to refresh and write the new token back. */
-let activeSessionBusy = false;
-export function setActiveSessionBusy(busy: boolean): void {
-  activeSessionBusy = busy;
-}
 
 /** For the active account use the live credentials file (Claude Code keeps it
  *  fresh); otherwise use the vault copy. */
@@ -66,11 +58,11 @@ async function callWithAuth<T>(label: string, call: (token: string) => Promise<T
     if ((e as Error).message !== "unauthorized") throw e;
   }
 
-  // 2a. For the ACTIVE account, only hold off while polyclaude is itself running
-  //     a Claude session on it (don't race the live process over the rotating
-  //     token). When idle, fall through and refresh like any other account,
-  //     writing the new token back to .credentials.json so Claude stays in sync.
-  if (label === activeLabel && activeSessionBusy) {
+  // 2a. NEVER refresh the ACTIVE account's token — Claude Code owns it and the
+  //     refresh token rotates; polyclaude refreshing it races the live process and
+  //     rate-limits the token endpoint. Show last-known numbers; Claude Code
+  //     refreshes the token the next time you actually use it.
+  if (label === activeLabel) {
     throw new Error("open Claude to refresh");
   }
 
