@@ -125,36 +125,30 @@ function friendly(msg: string): string {
   return msg;
 }
 
-// Per-account rate guard: never hit the usage endpoint more than ~once / 2 min
-// for an account (and back off hard after a 429), no matter how often the UI
-// polls. This is what keeps polyclaude off HTTP 429 — the usage API is
-// undocumented and rate-limited, and the GUI polls all accounts frequently.
+// Cross-process rate guard: never hit the usage endpoint more than ~once / 2 min
+// for an account (and back off hard after a 429), no matter how often any process
+// polls. The window is persisted on the account meta (usageNextFetchAt) so the
+// GUI, the status line (a fresh process per render), and the CLI all coordinate —
+// the usage API is undocumented and rate-limited.
 const MIN_FETCH_MS = 120_000;
 const RATE_LIMIT_BACKOFF_MS = 10 * 60_000;
-const nextFetchAt = new Map<string, number>();
-const lastReason = new Map<string, string>();
 
 /** Fetch + cache usage for a stored account label, keeping the last value on
  *  failure. Throttled per account so we don't hammer (and get 429'd by) the API. */
 export async function fetchForLabel(label: string): Promise<AccountUsage> {
-  const cached = (await vault.load()).accounts[label]?.meta.usage;
+  const meta = (await vault.load()).accounts[label]?.meta;
+  const cached = meta?.usage;
 
-  // Within the throttle / back-off window → don't call the API.
-  if (Date.now() < (nextFetchAt.get(label) ?? 0)) {
-    const reason = lastReason.get(label);
-    if (cached && cached.fiveHourPct != null) {
-      // Recent good numbers: only flag stale if the last attempt actually failed.
-      return reason ? { ...cached, stale: true, error: reason } : cached;
-    }
-    return { fetchedAt: cached?.fetchedAt ?? Date.now(), error: reason ?? "usage temporarily unavailable" };
+  // Within the throttle / back-off window → don't call the API. Return the cached
+  // value as persisted (it already carries any stale/error state from last time).
+  if (Date.now() < (meta?.usageNextFetchAt ?? 0)) {
+    return cached ?? { fetchedAt: Date.now(), error: "usage temporarily unavailable" };
   }
 
   try {
     const u = await callWithAuth(label, oauthapi.getUsage);
     const usage = toAccountUsage(u);
-    nextFetchAt.set(label, Date.now() + MIN_FETCH_MS);
-    lastReason.delete(label);
-    await vault.updateMeta(label, { usage });
+    await vault.updateMeta(label, { usage, usageNextFetchAt: Date.now() + MIN_FETCH_MS });
     // For the active account, keep the vault's stored credentials in sync with
     // the live file — so reconnecting via `claude auth login` updates this entry
     // (no duplicate) and switching back later won't restore a stale token. But
@@ -173,17 +167,17 @@ export async function fetchForLabel(label: string): Promise<AccountUsage> {
   } catch (e) {
     const msg = (e as Error).message;
     const reason = friendly(msg);
-    lastReason.set(label, reason);
     // Back off — hard on a 429, gently otherwise (so a failing account isn't
     // re-polled every 30s, which is how we got rate-limited in the first place).
-    nextFetchAt.set(label, Date.now() + (/429|rate-?limit|too many/i.test(msg) ? RATE_LIMIT_BACKOFF_MS : MIN_FETCH_MS));
-    const existing = (await vault.load()).accounts[label]?.meta.usage;
-    // Keep showing the last good numbers, but flag them stale + carry the reason
-    // so the UI can distinguish "couldn't refresh" from "sign-in expired" (401).
-    if (existing && existing.fiveHourPct != null) {
-      return { ...existing, stale: true, error: reason };
-    }
-    return { fetchedAt: Date.now(), error: reason };
+    const backoff = /429|rate-?limit|too many/i.test(msg) ? RATE_LIMIT_BACKOFF_MS : MIN_FETCH_MS;
+    // Persist the error state (keeping last-good numbers) + the back-off window,
+    // so every process shows the same reason and waits the same amount.
+    const result: AccountUsage =
+      cached && cached.fiveHourPct != null
+        ? { ...cached, stale: true, error: reason }
+        : { fetchedAt: Date.now(), error: reason };
+    await vault.updateMeta(label, { usage: result, usageNextFetchAt: Date.now() + backoff }).catch(() => {});
+    return result;
   }
 }
 

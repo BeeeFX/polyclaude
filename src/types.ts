@@ -59,6 +59,10 @@ export interface AccountMeta {
   rateLimitTier?: string;
   /** cached real usage (percentages + resets) */
   usage?: AccountUsage;
+  /** epoch ms before which no process should re-fetch usage for this account —
+   *  a cross-process rate guard so GUI + status line + CLI don't hammer (429) the
+   *  usage API together. */
+  usageNextFetchAt?: number;
   /** epoch ms */
   addedAt: number;
   /** epoch ms */
