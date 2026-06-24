@@ -12,10 +12,24 @@ import type { AccountUsage, CredentialsFile } from "../types.js";
  * (or retrying a failing refresh in a tight loop) gets the whole account
  * rate-limited. When a refresh fails we back off and keep showing the last
  * known usage instead of hammering.
+ *
+ * The active account is refreshed too (so usage updates without "open Claude"),
+ * EXCEPT while polyclaude is running a Claude session on it (see
+ * setActiveSessionBusy) — then we leave the rotating token to the live process.
+ * Refreshed tokens are written back to .credentials.json so Claude stays in sync.
  */
 
 const REFRESH_BACKOFF_MS = 10 * 60_000; // after a failed refresh, wait before retrying
 const backoffUntil = new Map<string, number>();
+
+/** True while polyclaude is itself running a Claude session on the active account
+ *  (set by the desktop app's pty manager). We avoid refreshing the active token
+ *  during that window so we don't race the live process over the rotating token;
+ *  when idle it's safe for polyclaude to refresh and write the new token back. */
+let activeSessionBusy = false;
+export function setActiveSessionBusy(busy: boolean): void {
+  activeSessionBusy = busy;
+}
 
 /** For the active account use the live credentials file (Claude Code keeps it
  *  fresh); otherwise use the vault copy. */
@@ -49,14 +63,15 @@ async function callWithAuth<T>(label: string, call: (token: string) => Promise<T
     if ((e as Error).message !== "unauthorized") throw e;
   }
 
-  // 2a. Never refresh the ACTIVE account's token — Claude Code owns it and the
-  //     refresh token rotates; competing over it can invalidate the login.
-  //     It will be refreshed the next time you actually use Claude.
-  if (label === activeLabel) {
-    throw new Error("session token expired — open Claude to refresh");
+  // 2a. For the ACTIVE account, only hold off while polyclaude is itself running
+  //     a Claude session on it (don't race the live process over the rotating
+  //     token). When idle, fall through and refresh like any other account,
+  //     writing the new token back to .credentials.json so Claude stays in sync.
+  if (label === activeLabel && activeSessionBusy) {
+    throw new Error("open Claude to refresh");
   }
 
-  // 2b. Inactive account → polyclaude manages it: refresh once (with backoff).
+  // 2b. Refresh once (with backoff), then retry the call.
   const until = backoffUntil.get(label) ?? 0;
   if (Date.now() < until) throw new Error("usage temporarily unavailable");
 
@@ -94,7 +109,11 @@ function toAccountUsage(u: oauthapi.UsageResponse): AccountUsage {
 
 function friendly(msg: string): string {
   if (/rate-limited|rate_limit/i.test(msg)) return "usage temporarily unavailable (rate-limited)";
-  if (/unauthorized|401/i.test(msg)) return "session expired — run Claude or re-add the account";
+  // A failed refresh with an invalid/expired refresh token means the login is no
+  // longer valid — only a real re-login (`/login`) fixes it.
+  if (/invalid_grant|invalid_request|invalid_token|unauthorized|401/i.test(msg)) {
+    return "sign in again — run /login in Claude";
+  }
   return msg;
 }
 

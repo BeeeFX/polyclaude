@@ -14,9 +14,9 @@ const EFFORTS = ["", "low", "medium", "high", "max"];
 const USAGE_POLL_MS = 30_000;
 
 /** A usage error that means the login is no longer valid (needs /login), vs a
- *  transient "couldn't refresh" staleness. */
+ *  transient "couldn't refresh" staleness (which auto-resolves). */
 function isAuthError(u?: AccountUsage): boolean {
-  return !!u?.error && /expired|login|401|unauthor|auth|invalid/i.test(u.error);
+  return !!u?.error && /sign in again|\/login|invalid_grant|invalid_request|unauthor/i.test(u.error);
 }
 
 export function App() {
