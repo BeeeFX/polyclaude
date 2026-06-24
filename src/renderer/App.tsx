@@ -259,9 +259,13 @@ export function App() {
                 ⚠ {usage?.error ?? "sign in again"} — click to re-login
               </button>
             ) : usage?.stale ? (
-              <span className="stale-chip" title={`Last updated ${ago(usage.fetchedAt)}`}>
-                ⟳ {usage?.error ?? "usage stale — open Claude to refresh"}
-              </span>
+              <button
+                className="stale-chip"
+                onClick={() => relogin()}
+                title={`Last updated ${ago(usage.fetchedAt)} · click to re-login`}
+              >
+                ⟳ {usage?.error ?? "usage stale"} — click to re-login
+              </button>
             ) : null}
           </div>
           <div className="top-actions">
@@ -461,9 +465,11 @@ function AccountRow({
       )}
       {switching ? (
         <span className="mini-spinner" />
-      ) : isAuthError(u) ? (
+      ) : u?.error || u?.stale ? (
+        // Anything that can't fetch live usage (auth-expired, rate-limited, …) —
+        // re-login is the universal fix (a fresh token avoids the failing refresh).
         <button
-          className="relogin-btn"
+          className={`relogin-btn ${isAuthError(u) ? "" : "soft"}`}
           title="Sign in again (opens the browser)"
           onClick={(e) => {
             e.stopPropagation();

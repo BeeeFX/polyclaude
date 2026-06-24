@@ -720,6 +720,14 @@ button:disabled {
 .relogin-btn:hover {
   background: rgba(248, 113, 113, 0.26);
 }
+.relogin-btn.soft {
+  color: var(--warn);
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.35);
+}
+.relogin-btn.soft:hover {
+  background: rgba(251, 191, 36, 0.24);
+}
 
 /* ---- auth-expired chip + stale bar + mascot ---- */
 .auth-chip {
@@ -736,6 +744,9 @@ button:disabled {
 }
 .auth-chip:hover {
   background: rgba(248, 113, 113, 0.2);
+}
+.stale-chip:hover {
+  background: rgba(251, 191, 36, 0.2);
 }
 .bar-track.is-stale {
   opacity: 0.5;
