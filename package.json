@@ -42,7 +42,8 @@
     "smoke": "tsx test/tui-smoke.tsx",
     "test:statusline": "tsx test/statusline-smoke.ts",
     "test:crypto": "tsx test/crypto-smoke.ts",
-    "test": "npm run typecheck && npm run typecheck:gui && npm run smoke && npm run test:statusline && npm run test:crypto",
+    "test:vault": "tsx test/vault-smoke.ts",
+    "test": "npm run typecheck && npm run typecheck:gui && npm run smoke && npm run test:statusline && npm run test:crypto && npm run test:vault",
     "typecheck": "tsc --noEmit",
     "typecheck:gui": "tsc -p src/renderer/tsconfig.json",
     "prepare": "npm run build"

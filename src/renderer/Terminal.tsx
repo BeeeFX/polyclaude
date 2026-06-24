@@ -9,7 +9,15 @@ import type { TermStartOpts } from "./types";
  * a `key` so a "restart" simply remounts it with a fresh session. The pty's bytes
  * stream in over IPC; keystrokes stream back out.
  */
-export function TerminalView({ opts, onExit }: { opts: TermStartOpts; onExit?: () => void }) {
+export function TerminalView({
+  opts,
+  onExit,
+  onReady,
+}: {
+  opts: TermStartOpts;
+  onExit?: () => void;
+  onReady?: () => void;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,9 +65,15 @@ export function TerminalView({ opts, onExit }: { opts: TermStartOpts; onExit?: (
         return;
       }
       id = res.id;
+      let readyFired = false;
       unsubs.push(
         window.poly.terminal.onData((p) => {
-          if (p.id === id) term.write(p.data);
+          if (p.id !== id) return;
+          term.write(p.data);
+          if (!readyFired) {
+            readyFired = true;
+            onReady?.(); // first output → the session is up (clears any "switching…" overlay)
+          }
         })
       );
       unsubs.push(

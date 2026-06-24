@@ -34,6 +34,7 @@ export function App() {
   const [termOpts, setTermOpts] = useState<TermStartOpts>({});
   const [termKey, setTermKey] = useState(0);
   const [sessionLive, setSessionLive] = useState(false);
+  const [restarting, setRestarting] = useState<string | null>(null); // label being resumed onto
   const [renaming, setRenaming] = useState<{ label: string; value: string } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -82,6 +83,14 @@ export function App() {
     return () => window.clearInterval(id);
   }, [reload, refreshUsage]);
 
+  // Safety net: never leave the "switching…" overlay up forever if the resumed
+  // session produces no output (e.g. it errored before printing anything).
+  useEffect(() => {
+    if (!restarting) return;
+    const t = window.setTimeout(() => setRestarting(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [restarting]);
+
   const active = useMemo(() => accounts.find((a) => a.label === activeLabel), [accounts, activeLabel]);
   const usage = active?.usage;
   const name =
@@ -89,32 +98,6 @@ export function App() {
     active?.fullName ||
     active?.email?.split("@")[0] ||
     "there";
-
-  const switchTo = useCallback(
-    async (label: string) => {
-      if (label === activeLabel || switching) return;
-      setSwitching(label);
-      const r = await window.poly.accounts.switch(label);
-      if (r.ok) {
-        await reload();
-        await refreshUsage();
-        flash(
-          sessionLive
-            ? `Switched to ${label} · Restart the session to use it`
-            : `Switched to ${label}`
-        );
-      } else {
-        flash(r.error);
-      }
-      setSwitching(null);
-    },
-    [activeLabel, switching, reload, refreshUsage, flash, sessionLive]
-  );
-
-  const patchSettings = useCallback(async (patch: Partial<Settings>) => {
-    const next = await window.poly.settings.update(patch);
-    setSettings(next);
-  }, []);
 
   const launchClaude = useCallback(
     (opts: TermStartOpts) => {
@@ -130,6 +113,36 @@ export function App() {
     },
     [termAvailable, flash]
   );
+
+  const switchTo = useCallback(
+    async (label: string) => {
+      if (label === activeLabel || switching) return;
+      setSwitching(label);
+      const r = await window.poly.accounts.switch(label);
+      if (r.ok) {
+        await reload();
+        await refreshUsage();
+        if (sessionLive && termAvailable) {
+          // Seamless: resume the same conversation on the new account in the
+          // background — no manual restart. The TerminalView remount kills the
+          // old pty and starts `claude -c`; an overlay covers the swap.
+          setRestarting(label);
+          launchClaude({ resume: true });
+        } else {
+          flash(`Switched to ${label}`);
+        }
+      } else {
+        flash(r.error);
+      }
+      setSwitching(null);
+    },
+    [activeLabel, switching, reload, refreshUsage, flash, sessionLive, termAvailable, launchClaude]
+  );
+
+  const patchSettings = useCallback(async (patch: Partial<Settings>) => {
+    const next = await window.poly.settings.update(patch);
+    setSettings(next);
+  }, []);
 
   const commitRename = useCallback(async () => {
     if (!renaming) return;
@@ -312,9 +325,10 @@ export function App() {
             <div className="term-toolbar">
               <span className="muted small">
                 Running on <b className="run-acct">{activeLabel}</b>
+                <span className="muted small"> · switch accounts in the sidebar to resume here</span>
               </span>
               <div className="term-actions">
-                <button className="ghost" onClick={() => launchClaude({ resume: true })} title="Restart this conversation on the active account">
+                <button className="ghost" onClick={() => launchClaude({ resume: true })} title="Resume this conversation on the active account">
                   ⟳ Restart
                 </button>
                 <button className="ghost" onClick={() => launchClaude({})}>
@@ -325,7 +339,17 @@ export function App() {
                 </button>
               </div>
             </div>
-            <TerminalView key={termKey} opts={termOpts} onExit={() => undefined} />
+            <div className="term-wrap">
+              <TerminalView key={termKey} opts={termOpts} onExit={() => undefined} onReady={() => setRestarting(null)} />
+              {restarting && (
+                <div className="term-overlay">
+                  <div className="spinner" />
+                  <span>
+                    Switching to <b className="run-acct">{restarting}</b> · resuming your conversation…
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
