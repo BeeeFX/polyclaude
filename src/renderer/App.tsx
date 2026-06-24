@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
 import type { AccountMeta, AccountUsage, Conversation, Settings, TermStartOpts } from "./types";
 import { ago, cap, level, pctText, resetAt, resetIn } from "./format";
 import { TerminalView } from "./Terminal";
@@ -45,6 +45,10 @@ export function App() {
   const [renaming, setRenaming] = useState<{ label: string; value: string } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const loginSessionRef = useRef(false); // the live terminal session is a sign-in flow
+  const [menu, setMenu] = useState<{ x: number; y: number; label: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const dragLabel = useRef<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -100,6 +104,53 @@ export function App() {
   }, [restarting]);
 
   const active = useMemo(() => accounts.find((a) => a.label === activeLabel), [accounts, activeLabel]);
+
+  // Apply the user's custom sidebar order (labels not in it fall to the end, A→Z).
+  const orderedAccounts = useMemo(() => {
+    const order = settings?.accountOrder ?? [];
+    const rank = (l: string) => {
+      const i = order.indexOf(l);
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    return [...accounts].sort((a, b) => rank(a.label) - rank(b.label) || a.label.localeCompare(b.label));
+  }, [accounts, settings?.accountOrder]);
+
+  const reorder = useCallback(
+    (from: string, to: string) => {
+      if (from === to) return;
+      const labels = orderedAccounts.map((a) => a.label);
+      const fi = labels.indexOf(from);
+      const ti = labels.indexOf(to);
+      if (fi === -1 || ti === -1) return;
+      labels.splice(fi, 1);
+      labels.splice(ti, 0, from);
+      void window.poly.settings.update({ accountOrder: labels }).then(setSettings);
+    },
+    [orderedAccounts]
+  );
+
+  const doDelete = useCallback(
+    async (label: string) => {
+      setConfirmDelete(null);
+      const r = await window.poly.accounts.remove(label);
+      if (r.ok) {
+        await reload();
+        await refreshUsage();
+        flash(`Deleted ${label}`);
+      } else {
+        flash(r.error);
+      }
+    },
+    [reload, refreshUsage, flash]
+  );
+
+  // Close the context menu on Escape.
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menu]);
   const usage = active?.usage;
   const name =
     settings?.name?.trim() ||
@@ -223,7 +274,7 @@ export function App() {
         </div>
 
         <div className="acct-list">
-          {accounts.map((a) => (
+          {orderedAccounts.map((a) => (
             <AccountRow
               key={a.label}
               account={a}
@@ -231,12 +282,28 @@ export function App() {
               switching={switching === a.label}
               disabled={!!switching || !!renaming}
               renameValue={renaming?.label === a.label ? renaming.value : null}
+              dragOver={dragOver === a.label}
               onClick={() => void switchTo(a.label)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenu({ x: e.clientX, y: e.clientY, label: a.label });
+              }}
               onStartRename={() => setRenaming({ label: a.label, value: a.label })}
               onRenameChange={(v) => setRenaming((r) => (r ? { ...r, value: v } : r))}
               onRenameCommit={() => void commitRename()}
               onRenameCancel={() => setRenaming(null)}
               onRelogin={() => relogin()}
+              onDragStartRow={() => (dragLabel.current = a.label)}
+              onDragOverRow={() => dragOver !== a.label && setDragOver(a.label)}
+              onDropRow={() => {
+                if (dragLabel.current) reorder(dragLabel.current, a.label);
+                dragLabel.current = null;
+                setDragOver(null);
+              }}
+              onDragEndRow={() => {
+                dragLabel.current = null;
+                setDragOver(null);
+              }}
             />
           ))}
         </div>
@@ -392,6 +459,78 @@ export function App() {
         )}
       </main>
 
+      {menu && (
+        <>
+          <div className="ctx-backdrop" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null); }} />
+          <div
+            className="ctx-menu"
+            style={{
+              left: Math.min(menu.x, window.innerWidth - 200),
+              top: Math.min(menu.y, window.innerHeight - 200),
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="ctx-item"
+              onClick={() => {
+                setRenaming({ label: menu.label, value: menu.label });
+                setMenu(null);
+              }}
+            >
+              ✎ Rename
+            </button>
+            <button
+              className="ctx-item"
+              onClick={() => {
+                relogin();
+                setMenu(null);
+              }}
+            >
+              ↻ Re-login
+            </button>
+            <div className="ctx-sep" />
+            <button
+              className="ctx-item"
+              onClick={() => {
+                launchClaude({ login: true });
+                setMenu(null);
+              }}
+            >
+              ＋ Add account…
+            </button>
+            <div className="ctx-sep" />
+            <button
+              className="ctx-item danger"
+              onClick={() => {
+                setConfirmDelete(menu.label);
+                setMenu(null);
+              }}
+            >
+              🗑 Delete
+            </button>
+          </div>
+        </>
+      )}
+
+      {confirmDelete && (
+        <div className="dialog-backdrop" onClick={() => setConfirmDelete(null)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete “{confirmDelete}”?</h3>
+            <p className="muted small">
+              Removes this profile from polyclaude. It won’t sign you out of Claude — you can re-add it any time.
+            </p>
+            <div className="dialog-actions">
+              <button className="ghost" onClick={() => setConfirmDelete(null)}>
+                Cancel
+              </button>
+              <button className="ghost danger" onClick={() => void doDelete(confirmDelete)}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={`toast ${toast ? "show" : ""}`}>{toast}</div>
     </div>
   );
@@ -403,31 +542,55 @@ function AccountRow({
   switching,
   disabled,
   renameValue,
+  dragOver,
   onClick,
+  onContextMenu,
   onStartRename,
   onRenameChange,
   onRenameCommit,
   onRenameCancel,
   onRelogin,
+  onDragStartRow,
+  onDragOverRow,
+  onDropRow,
+  onDragEndRow,
 }: {
   account: AccountMeta;
   active: boolean;
   switching: boolean;
   disabled: boolean;
   renameValue: string | null;
+  dragOver: boolean;
   onClick: () => void;
+  onContextMenu: (e: ReactMouseEvent) => void;
   onStartRename: () => void;
   onRenameChange: (v: string) => void;
   onRenameCommit: () => void;
   onRenameCancel: () => void;
   onRelogin: () => void;
+  onDragStartRow: () => void;
+  onDragOverRow: () => void;
+  onDropRow: () => void;
+  onDragEndRow: () => void;
 }) {
   const u = account.usage;
   const renaming = renameValue != null;
   return (
     <div
-      className={`acct ${active ? "active" : ""} ${renaming ? "is-renaming" : ""}`}
+      className={`acct ${active ? "active" : ""} ${renaming ? "is-renaming" : ""} ${dragOver ? "drag-over" : ""}`}
+      draggable={!renaming}
       onClick={() => !renaming && !disabled && onClick()}
+      onContextMenu={onContextMenu}
+      onDragStart={onDragStartRow}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOverRow();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropRow();
+      }}
+      onDragEnd={onDragEndRow}
     >
       <span className={`dot ${active ? "on" : ""}`} />
       <span className="acct-main">

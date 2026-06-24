@@ -29,6 +29,7 @@ export interface Settings {
   thinkingBudget: number;
   autoSwitch: boolean;
   switchOrder: string[];
+  accountOrder?: string[];
 }
 
 export interface Conversation {

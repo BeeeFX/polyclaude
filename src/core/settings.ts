@@ -30,6 +30,8 @@ export interface Settings {
   budget7dTokens?: number;
   /** Whether we've already offered to install the Claude Code status line (so we ask once). */
   statuslineOffered?: boolean;
+  /** Custom display order of account labels for the desktop sidebar (drag to reorder). */
+  accountOrder?: string[];
 }
 
 export const MODELS = ["opus", "sonnet", "haiku"] as const;
