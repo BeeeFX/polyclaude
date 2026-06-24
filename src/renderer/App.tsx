@@ -18,7 +18,7 @@ const EFFORTS: Array<{ value: string; label: string }> = [
   { value: "xhigh", label: "Ultracode (xhigh)" },
   { value: "max", label: "Max" },
 ];
-const USAGE_POLL_MS = 30_000;
+const USAGE_POLL_MS = 90_000;
 
 /** A usage error that means the login is no longer valid (needs /login), vs a
  *  transient "couldn't refresh" staleness (which auto-resolves). */

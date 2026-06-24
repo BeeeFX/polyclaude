@@ -116,7 +116,7 @@ function toAccountUsage(u: oauthapi.UsageResponse): AccountUsage {
 }
 
 function friendly(msg: string): string {
-  if (/rate-limited|rate_limit/i.test(msg)) return "usage temporarily unavailable (rate-limited)";
+  if (/429|rate-?limit|too many/i.test(msg)) return "usage temporarily unavailable (rate-limited)";
   // A failed refresh with an invalid/expired refresh token means the login is no
   // longer valid — only a real re-login (`/login`) fixes it.
   if (/invalid_grant|invalid_request|invalid_token|unauthorized|401/i.test(msg)) {
@@ -125,11 +125,35 @@ function friendly(msg: string): string {
   return msg;
 }
 
-/** Fetch + cache usage for a stored account label, keeping the last value on failure. */
+// Per-account rate guard: never hit the usage endpoint more than ~once / 2 min
+// for an account (and back off hard after a 429), no matter how often the UI
+// polls. This is what keeps polyclaude off HTTP 429 — the usage API is
+// undocumented and rate-limited, and the GUI polls all accounts frequently.
+const MIN_FETCH_MS = 120_000;
+const RATE_LIMIT_BACKOFF_MS = 10 * 60_000;
+const nextFetchAt = new Map<string, number>();
+const lastReason = new Map<string, string>();
+
+/** Fetch + cache usage for a stored account label, keeping the last value on
+ *  failure. Throttled per account so we don't hammer (and get 429'd by) the API. */
 export async function fetchForLabel(label: string): Promise<AccountUsage> {
+  const cached = (await vault.load()).accounts[label]?.meta.usage;
+
+  // Within the throttle / back-off window → don't call the API.
+  if (Date.now() < (nextFetchAt.get(label) ?? 0)) {
+    const reason = lastReason.get(label);
+    if (cached && cached.fiveHourPct != null) {
+      // Recent good numbers: only flag stale if the last attempt actually failed.
+      return reason ? { ...cached, stale: true, error: reason } : cached;
+    }
+    return { fetchedAt: cached?.fetchedAt ?? Date.now(), error: reason ?? "usage temporarily unavailable" };
+  }
+
   try {
     const u = await callWithAuth(label, oauthapi.getUsage);
     const usage = toAccountUsage(u);
+    nextFetchAt.set(label, Date.now() + MIN_FETCH_MS);
+    lastReason.delete(label);
     await vault.updateMeta(label, { usage });
     // For the active account, keep the vault's stored credentials in sync with
     // the live file — so reconnecting via `claude auth login` updates this entry
@@ -147,14 +171,19 @@ export async function fetchForLabel(label: string): Promise<AccountUsage> {
     }
     return usage;
   } catch (e) {
-    const data = await vault.load();
-    const existing = data.accounts[label]?.meta.usage;
+    const msg = (e as Error).message;
+    const reason = friendly(msg);
+    lastReason.set(label, reason);
+    // Back off — hard on a 429, gently otherwise (so a failing account isn't
+    // re-polled every 30s, which is how we got rate-limited in the first place).
+    nextFetchAt.set(label, Date.now() + (/429|rate-?limit|too many/i.test(msg) ? RATE_LIMIT_BACKOFF_MS : MIN_FETCH_MS));
+    const existing = (await vault.load()).accounts[label]?.meta.usage;
     // Keep showing the last good numbers, but flag them stale + carry the reason
     // so the UI can distinguish "couldn't refresh" from "sign-in expired" (401).
     if (existing && existing.fiveHourPct != null) {
-      return { ...existing, stale: true, error: friendly((e as Error).message) };
+      return { ...existing, stale: true, error: reason };
     }
-    return { fetchedAt: Date.now(), error: friendly((e as Error).message) };
+    return { fetchedAt: Date.now(), error: reason };
   }
 }
 
