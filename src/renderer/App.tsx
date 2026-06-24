@@ -222,12 +222,12 @@ export function App() {
               {active?.subscriptionType ? ` · Claude ${cap(active.subscriptionType)}` : ""}
             </p>
             {isAuthError(usage) ? (
-              <button className="auth-chip" onClick={() => launchClaude({})} title={usage?.error}>
-                ⚠ sign-in expired — open Claude and run /login
+              <button className="auth-chip" onClick={() => launchClaude({})} title="Opens Claude so you can run /login">
+                ⚠ {usage?.error ?? "sign in again — run /login in Claude"}
               </button>
             ) : usage?.stale ? (
               <span className="stale-chip" title={`Last updated ${ago(usage.fetchedAt)}`}>
-                ⟳ usage stale · open Claude to refresh
+                ⟳ {usage?.error ?? "usage stale — open Claude to refresh"}
               </span>
             ) : null}
           </div>

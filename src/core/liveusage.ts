@@ -21,6 +21,9 @@ import type { AccountUsage, CredentialsFile } from "../types.js";
 
 const REFRESH_BACKOFF_MS = 10 * 60_000; // after a failed refresh, wait before retrying
 const backoffUntil = new Map<string, number>();
+/** Friendly reason of the last refresh failure per label, so we keep reporting
+ *  the real cause (e.g. "sign in again") while backed off. */
+const lastFailReason = new Map<string, string>();
 
 /** True while polyclaude is itself running a Claude session on the active account
  *  (set by the desktop app's pty manager). We avoid refreshing the active token
@@ -71,16 +74,20 @@ async function callWithAuth<T>(label: string, call: (token: string) => Promise<T
     throw new Error("open Claude to refresh");
   }
 
-  // 2b. Refresh once (with backoff), then retry the call.
+  // 2b. Refresh once (with backoff), then retry the call. While backed off, keep
+  //     reporting the REAL reason of the last failure (e.g. "sign in again") so an
+  //     invalid login isn't masked as generic staleness for the next 10 minutes.
   const until = backoffUntil.get(label) ?? 0;
-  if (Date.now() < until) throw new Error("usage temporarily unavailable");
+  if (Date.now() < until) throw new Error(lastFailReason.get(label) ?? "usage temporarily unavailable");
 
   let r: oauthapi.RefreshResult;
   try {
     r = await oauthapi.refresh(creds.claudeAiOauth.refreshToken);
   } catch (e) {
+    const reason = friendly((e as Error).message);
+    lastFailReason.set(label, reason);
     backoffUntil.set(label, Date.now() + REFRESH_BACKOFF_MS);
-    throw e;
+    throw new Error(reason);
   }
   const fresh: CredentialsFile = {
     ...creds,
@@ -93,6 +100,7 @@ async function callWithAuth<T>(label: string, call: (token: string) => Promise<T
   };
   await persist(label, activeLabel, fresh);
   backoffUntil.delete(label);
+  lastFailReason.delete(label);
   return await call(r.access_token);
 }
 
