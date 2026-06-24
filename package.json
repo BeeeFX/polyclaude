@@ -29,6 +29,7 @@
   "main": "dist/main/index.js",
   "files": [
     "dist",
+    "assets",
     "README.md",
     "LICENSE"
   ],
@@ -38,6 +39,7 @@
     "dev": "tsx src/cli/index.ts",
     "pcc": "tsx src/cli/index.ts",
     "gui": "npm run build:gui && electron .",
+    "gen:icon": "node scripts/gen-icon.mjs",
     "gui:dev": "tsc -p tsconfig.json && concurrently -k -n vite,electron \"vite\" \"wait-on tcp:127.0.0.1:5173 && cross-env POLY_DEV_SERVER=http://localhost:5173 electron .\"",
     "smoke": "tsx test/tui-smoke.tsx",
     "test:statusline": "tsx test/statusline-smoke.ts",
