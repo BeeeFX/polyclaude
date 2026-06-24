@@ -75,6 +75,9 @@ async function identify(creds: CredentialsFile): Promise<Identity> {
       uuid: p.account.uuid,
       email: p.account.email,
       fullName: p.account.full_name ?? p.account.display_name,
+      // Org uuid distinguishes contexts of the SAME login (personal Pro vs a team)
+      // — the token is org-scoped server-side, so this is the only local discriminator.
+      orgId: p.organization.uuid,
       orgName: p.organization.name,
       orgType: p.organization.organization_type,
       seatTier: p.organization.seat_tier ?? null,
@@ -106,11 +109,17 @@ export async function captureActive(
   const id = await identify(creds);
 
   const accounts = await vault.list();
-  const match = accounts.find(
-    (m) =>
+  const match = accounts.find((m) => {
+    const sameUser =
       (id.uuid && m.accountUuid === id.uuid) ||
-      (id.email && m.email && m.email.toLowerCase() === id.email.toLowerCase())
-  );
+      (id.email && m.email && m.email.toLowerCase() === id.email.toLowerCase());
+    if (!sameUser) return false;
+    // One Claude login can have several org contexts (personal Pro + a team).
+    // Keep those as SEPARATE profiles: only treat as the same account when the org
+    // also matches — or when neither side has an org id yet (legacy/email-only).
+    if (id.orgId && m.orgId) return id.orgId === m.orgId;
+    return !id.orgId && !m.orgId;
+  });
   const label = match?.label ?? suggestLabel(id.email, accounts.map((m) => m.label));
 
   await vault.upsert(label, creds, {
