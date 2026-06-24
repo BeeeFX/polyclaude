@@ -19,6 +19,7 @@ const api = {
     switch: (label: string) => ipcRenderer.invoke("accounts:switch", label),
     rename: (oldLabel: string, newLabel: string) => ipcRenderer.invoke("accounts:rename", oldLabel, newLabel),
     remove: (label: string) => ipcRenderer.invoke("accounts:remove", label),
+    captureActive: () => ipcRenderer.invoke("accounts:captureActive"),
   },
   usage: {
     active: () => ipcRenderer.invoke("usage:active"),

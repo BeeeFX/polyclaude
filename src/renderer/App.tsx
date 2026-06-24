@@ -44,6 +44,7 @@ export function App() {
   const [restarting, setRestarting] = useState<string | null>(null); // label being resumed onto
   const [renaming, setRenaming] = useState<{ label: string; value: string } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  const loginSessionRef = useRef(false); // the live terminal session is a sign-in flow
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -109,10 +110,14 @@ export function App() {
   const launchClaude = useCallback(
     (opts: TermStartOpts) => {
       if (!termAvailable) {
-        void window.poly.claude.launch(opts.cwd);
-        flash("Opened Claude in your terminal (embedded terminal unavailable here).");
+        if (opts.login) flash("Run `pcc login` in a terminal to sign in (embedded terminal unavailable here).");
+        else {
+          void window.poly.claude.launch(opts.cwd);
+          flash("Opened Claude in your terminal (embedded terminal unavailable here).");
+        }
         return;
       }
+      loginSessionRef.current = !!opts.login;
       setTermOpts(opts);
       setTermKey((k) => k + 1); // remount = fresh session
       setSessionLive(true);
@@ -120,6 +125,26 @@ export function App() {
     },
     [termAvailable, flash]
   );
+
+  // When a sign-in terminal session ends, capture the new credentials into the
+  // vault (de-duped to the matching account) and refresh.
+  const onTermExit = useCallback(() => {
+    if (!loginSessionRef.current) return;
+    loginSessionRef.current = false;
+    void window.poly.accounts.captureActive().then((r) => {
+      if (r.ok) {
+        void reload();
+        void refreshUsage();
+        flash(`Signed in${r.email ? ` as ${r.email}` : ""}`);
+      } else {
+        flash(r.error || "sign-in not completed");
+      }
+    });
+  }, [reload, refreshUsage, flash]);
+
+  /** Re-login an account: opens the browser sign-in in the embedded terminal;
+   *  captureActive (on exit) maps the result to the matching account by identity. */
+  const relogin = useCallback(() => launchClaude({ login: true }), [launchClaude]);
 
   const switchTo = useCallback(
     async (label: string) => {
@@ -211,11 +236,12 @@ export function App() {
               onRenameChange={(v) => setRenaming((r) => (r ? { ...r, value: v } : r))}
               onRenameCommit={() => void commitRename()}
               onRenameCancel={() => setRenaming(null)}
+              onRelogin={() => relogin()}
             />
           ))}
         </div>
 
-        <button className="add-acct" onClick={() => flash("Run `pcc` (or the CLI) to sign in to a new account — in-app sign-in is coming.")}>
+        <button className="add-acct" onClick={() => launchClaude({ login: true })}>
           + Add account
         </button>
       </aside>
@@ -229,8 +255,8 @@ export function App() {
               {active?.subscriptionType ? ` · Claude ${cap(active.subscriptionType)}` : ""}
             </p>
             {isAuthError(usage) ? (
-              <button className="auth-chip" onClick={() => launchClaude({})} title="Opens Claude so you can run /login">
-                ⚠ {usage?.error ?? "sign in again — run /login in Claude"}
+              <button className="auth-chip" onClick={() => relogin()} title="Sign in again (opens the browser)">
+                ⚠ {usage?.error ?? "sign in again"} — click to re-login
               </button>
             ) : usage?.stale ? (
               <span className="stale-chip" title={`Last updated ${ago(usage.fetchedAt)}`}>
@@ -348,7 +374,7 @@ export function App() {
               </div>
             </div>
             <div className="term-wrap">
-              <TerminalView key={termKey} opts={termOpts} onExit={() => undefined} onReady={() => setRestarting(null)} />
+              <TerminalView key={termKey} opts={termOpts} onExit={onTermExit} onReady={() => setRestarting(null)} />
               {restarting && (
                 <div className="term-overlay">
                   <div className="spinner" />
@@ -378,6 +404,7 @@ function AccountRow({
   onRenameChange,
   onRenameCommit,
   onRenameCancel,
+  onRelogin,
 }: {
   account: AccountMeta;
   active: boolean;
@@ -389,6 +416,7 @@ function AccountRow({
   onRenameChange: (v: string) => void;
   onRenameCommit: () => void;
   onRenameCancel: () => void;
+  onRelogin: () => void;
 }) {
   const u = account.usage;
   const renaming = renameValue != null;
@@ -431,7 +459,22 @@ function AccountRow({
           ✎
         </button>
       )}
-      {switching ? <span className="mini-spinner" /> : <UsageRing pct={u?.fiveHourPct} warn={isAuthError(u)} />}
+      {switching ? (
+        <span className="mini-spinner" />
+      ) : isAuthError(u) ? (
+        <button
+          className="relogin-btn"
+          title="Sign in again (opens the browser)"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRelogin();
+          }}
+        >
+          ↻ Re-login
+        </button>
+      ) : (
+        <UsageRing pct={u?.fiveHourPct} />
+      )}
     </div>
   );
 }

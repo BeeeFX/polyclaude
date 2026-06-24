@@ -49,6 +49,17 @@ export function registerIpc(): void {
       return err(e);
     }
   });
+  // After an in-app `claude auth login`, capture the now-active credentials into
+  // the vault (de-duped by identity — updates the matching account, no copy).
+  ipcMain.handle("accounts:captureActive", async () => {
+    try {
+      const login = await import("../core/login.js");
+      const res = await login.captureActive({ primeUsage: false });
+      return { ok: true as const, ...res };
+    } catch (e) {
+      return err(e);
+    }
+  });
 
   ipcMain.handle("usage:active", () => liveusage.fetchActive());
   ipcMain.handle("usage:all", () => liveusage.fetchAll());

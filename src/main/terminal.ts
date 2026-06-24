@@ -21,6 +21,8 @@ interface StartOpts {
   resume?: boolean;
   /** Resume a specific session id (`claude --resume <id>`). */
   resumeId?: string;
+  /** Run `claude auth login` (browser sign-in) instead of a normal session. */
+  login?: boolean;
 }
 type StartResult = { ok: true; id: number } | { ok: false; error: string };
 
@@ -59,7 +61,11 @@ async function start(event: IpcMainInvokeEvent, opts: StartOpts): Promise<StartR
   if (!mod) return { ok: false, error: `embedded terminal unavailable (${loadError ?? "node-pty failed to load"})` };
 
   const wc = event.sender;
-  const { args, env } = await buildArgs(opts);
+  // Login mode runs the browser sign-in flow instead of a chat session; the
+  // renderer captures the resulting credentials when the pty exits.
+  const { args, env } = opts.login
+    ? { args: ["auth", "login", "--claudeai"], env: { ...process.env } as NodeJS.ProcessEnv }
+    : await buildArgs(opts);
   let term: IPty;
   try {
     term = mod.spawn(resolveClaudeBin(), args, {

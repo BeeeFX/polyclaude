@@ -57,6 +57,7 @@ export interface PolyApi {
     switch(label: string): Promise<Result>;
     rename(oldLabel: string, newLabel: string): Promise<Result>;
     remove(label: string): Promise<Result>;
+    captureActive(): Promise<{ ok: true; label: string; email?: string; updated: boolean } | { ok: false; error: string }>;
   };
   usage: {
     active(): Promise<AccountUsage | null>;
@@ -86,4 +87,5 @@ export interface TermStartOpts {
   cwd?: string;
   resume?: boolean;
   resumeId?: string;
+  login?: boolean;
 }
