@@ -10,7 +10,14 @@ const MODELS: Array<{ value: string; label: string }> = [
   { value: "sonnet", label: "Sonnet" },
   { value: "haiku", label: "Haiku" },
 ];
-const EFFORTS = ["", "low", "medium", "high", "max"];
+const EFFORTS: Array<{ value: string; label: string }> = [
+  { value: "", label: "Default" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "xhigh", label: "Ultracode (xhigh)" },
+  { value: "max", label: "Max" },
+];
 const USAGE_POLL_MS = 30_000;
 
 /** A usage error that means the login is no longer valid (needs /login), vs a
@@ -290,9 +297,10 @@ export function App() {
                 onChange={(v) => void patchSettings({ model: v })}
               />
               <Dropdown
-                label="Effort"
+                label={settings?.model === "haiku" ? "Effort (n/a for Haiku)" : "Effort"}
                 value={settings?.effort ?? ""}
-                options={EFFORTS.map((e) => ({ value: e, label: e ? cap(e) : "Default" }))}
+                options={EFFORTS}
+                disabled={settings?.model === "haiku"}
                 onChange={(v) => void patchSettings({ effort: v as Settings["effort"] })}
               />
               <Toggle label="Extended thinking" on={!!settings?.thinking} onClick={() => void patchSettings({ thinking: !settings?.thinking })} />
@@ -494,16 +502,18 @@ function Dropdown({
   value,
   options,
   onChange,
+  disabled,
 }: {
   label: string;
   value: string;
   options: Array<{ value: string; label: string }>;
   onChange: (v: string) => void;
+  disabled?: boolean;
 }) {
   return (
-    <label className="dd">
+    <label className={`dd ${disabled ? "is-disabled" : ""}`}>
       <span className="dd-label">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}

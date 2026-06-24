@@ -20,7 +20,7 @@ export interface DashboardResult {
 }
 
 const MODEL_CYCLE = ["", "opus", "sonnet", "haiku"];
-const EFFORT_CYCLE: Array<settings.Effort | ""> = ["", "low", "medium", "high", "max"];
+const EFFORT_CYCLE: Array<settings.Effort | ""> = ["", "low", "medium", "high", "xhigh", "max"];
 const CONV_WINDOW = 12;
 const USAGE_REFRESH_MS = 5 * 60_000;
 

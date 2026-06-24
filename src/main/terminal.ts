@@ -54,7 +54,8 @@ async function buildArgs(opts: StartOpts): Promise<{ args: string[]; env: NodeJS
   if (opts.resumeId) args.push("--resume", opts.resumeId);
   else if (opts.resume) args.push("-c");
   if (s.model) args.push("--model", s.model);
-  if (s.effort) args.push("--effort", s.effort);
+  // Haiku doesn't support the effort parameter — don't pass an invalid flag.
+  if (s.effort && settings.supportsEffort(s.model)) args.push("--effort", s.effort);
   const env: NodeJS.ProcessEnv = { ...process.env, POLYCLAUDE_HOST: "1" };
   if (s.thinking) env.MAX_THINKING_TOKENS = String(s.thinkingBudget);
   return { args, env };

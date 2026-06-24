@@ -2,7 +2,14 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { POLY_DIR } from "./paths.js";
 
-export type Effort = "low" | "medium" | "high" | "max";
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
+/** Haiku doesn't support the reasoning-effort parameter; Opus/Sonnet (and the
+ *  Claude-default model) do — including "xhigh" (Claude Code's "Ultracode") and
+ *  "max". Used to avoid passing an unsupported --effort flag. */
+export function supportsEffort(model: string | undefined): boolean {
+  return model !== "haiku";
+}
 
 export interface Settings {
   /** What polyclaude calls you ("Welcome back, <name>!"); "" = auto-derive. */
@@ -26,7 +33,7 @@ export interface Settings {
 }
 
 export const MODELS = ["opus", "sonnet", "haiku"] as const;
-export const EFFORTS: Effort[] = ["low", "medium", "high", "max"];
+export const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
 
 const DEFAULTS: Settings = {
   name: "",

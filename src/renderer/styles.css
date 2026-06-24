@@ -507,6 +507,12 @@ button:disabled {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
+.dd.is-disabled {
+  opacity: 0.45;
+}
+.dd.is-disabled select {
+  cursor: not-allowed;
+}
 .toggle {
   display: inline-flex;
   align-items: center;

@@ -24,7 +24,7 @@ export interface AccountMeta {
 export interface Settings {
   name: string;
   model: string;
-  effort: "" | "low" | "medium" | "high" | "max";
+  effort: "" | "low" | "medium" | "high" | "xhigh" | "max";
   thinking: boolean;
   thinkingBudget: number;
   autoSwitch: boolean;

@@ -66,7 +66,7 @@ export async function runDashboard(): Promise<void> {
       const s = await settings.load();
       const args: string[] = [];
       if (s.model) args.push("--model", s.model);
-      if (s.effort) args.push("--effort", s.effort);
+      if (s.effort && settings.supportsEffort(s.model)) args.push("--effort", s.effort);
       const env: NodeJS.ProcessEnv = { ...process.env, POLYCLAUDE_HOST: "1" };
       if (s.thinking) env.MAX_THINKING_TOKENS = String(s.thinkingBudget);
       await spawnInteractive(args, env, result.cwd);
