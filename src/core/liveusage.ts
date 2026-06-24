@@ -110,8 +110,9 @@ function toAccountUsage(u: oauthapi.UsageResponse): AccountUsage {
 function friendly(msg: string): string {
   if (/429|rate-?limit|too many/i.test(msg)) return "usage temporarily unavailable (rate-limited)";
   // A failed refresh with an invalid/expired refresh token means the login is no
-  // longer valid — only a real re-login (`/login`) fixes it.
-  if (/invalid_grant|invalid_request|invalid_token|unauthorized|401/i.test(msg)) {
+  // longer valid — only a real re-login fixes it. The token endpoint returns these
+  // as invalid_grant or a bare 4xx (e.g. "token refresh failed (HTTP 400)").
+  if (/invalid_grant|invalid_request|invalid_token|unauthor|401|refresh failed \(http 40/i.test(msg)) {
     return "sign in again — run /login in Claude";
   }
   return msg;

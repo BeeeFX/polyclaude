@@ -54,7 +54,8 @@ export function registerIpc(): void {
   ipcMain.handle("accounts:captureActive", async () => {
     try {
       const login = await import("../core/login.js");
-      const res = await login.captureActive({ primeUsage: false });
+      // primeUsage (default) re-fetches usage now that the rate-guard is cleared.
+      const res = await login.captureActive();
       return { ok: true as const, ...res };
     } catch (e) {
       return err(e);

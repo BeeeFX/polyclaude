@@ -124,6 +124,9 @@ export async function captureActive(
     subscriptionType: id.subscriptionType ?? creds.claudeAiOauth.subscriptionType,
     rateLimitTier: id.rateLimitTier ?? creds.claudeAiOauth.rateLimitTier,
     expiresAt: creds.claudeAiOauth.expiresAt,
+    // Fresh login → clear any usage rate-guard/back-off so usage re-fetches now
+    // with the new token (otherwise a stale "sign in again" lingers behind the gate).
+    usageNextFetchAt: 0,
   });
   await vault.setActive(label);
   await switchlog.record(label, match ? "manual" : "add");
