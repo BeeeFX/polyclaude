@@ -61,6 +61,23 @@ export interface ProfileResponse {
   };
 }
 
+/**
+ * The plan/seat to display, derived from the ACTIVE organization context — not
+ * the personal account flags. A team or enterprise seat must win over
+ * `account.has_claude_pro`, which is also true whenever the same login happens
+ * to hold a personal Pro; reading the account flag alone mislabels a team
+ * account as "pro" (the bug this fixes). Org type "claude_team" → "team",
+ * "claude_enterprise" → "enterprise", "claude_max" → "max", "claude_pro" → "pro".
+ * Falls back to the account entitlement only when no org type is present.
+ */
+export function planFromProfile(p: ProfileResponse): string | undefined {
+  const orgType = p.organization?.organization_type;
+  if (orgType) return orgType.startsWith("claude_") ? orgType.slice("claude_".length) : orgType;
+  if (p.account?.has_claude_max) return "max";
+  if (p.account?.has_claude_pro) return "pro";
+  return undefined;
+}
+
 async function apiGet<T>(path: string, token: string, timeoutMs = 8000): Promise<T> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);

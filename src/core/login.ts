@@ -81,7 +81,9 @@ async function identify(creds: CredentialsFile): Promise<Identity> {
       orgName: p.organization.name,
       orgType: p.organization.organization_type,
       seatTier: p.organization.seat_tier ?? null,
-      subscriptionType: p.account.has_claude_max ? "max" : p.account.has_claude_pro ? "pro" : undefined,
+      // Plan must reflect the active org (team/enterprise), not the personal
+      // has_claude_pro flag — see oauthapi.planFromProfile.
+      subscriptionType: oauthapi.planFromProfile(p),
       rateLimitTier: p.organization.rate_limit_tier,
     };
   } catch {

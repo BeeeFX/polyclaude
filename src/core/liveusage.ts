@@ -184,7 +184,8 @@ export async function fetchProfileForLabel(label: string): Promise<void> {
       orgName: p.organization.name,
       orgType: p.organization.organization_type,
       seatTier: p.organization.seat_tier ?? null,
-      subscriptionType: p.account.has_claude_max ? "max" : p.account.has_claude_pro ? "pro" : undefined,
+      // Plan from the active org (team/enterprise wins over a personal Pro flag).
+      subscriptionType: oauthapi.planFromProfile(p),
       rateLimitTier: p.organization.rate_limit_tier,
     });
   } catch {
