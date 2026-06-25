@@ -3,6 +3,7 @@ import type { AccountMeta, AccountUsage, CliStatus, Conversation, Settings, Term
 import { ago, cap, level, pctText, resetAt, resetIn } from "./format";
 import { TerminalView } from "./Terminal";
 import { Mascot } from "./Mascot";
+import { Onboarding } from "./Onboarding";
 
 const MODELS: Array<{ value: string; label: string }> = [
   { value: "", label: "Default" },
@@ -54,6 +55,7 @@ export function App() {
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
   const [updating, setUpdating] = useState<"idle" | "working" | "error">("idle");
+  const [capturing, setCapturing] = useState(false); // finishing a first sign-in
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -218,14 +220,18 @@ export function App() {
   const onTermExit = useCallback(() => {
     if (!loginSessionRef.current) return;
     loginSessionRef.current = false;
-    void window.poly.accounts.captureActive().then((r) => {
+    setSessionLive(false);
+    setView("home");
+    setCapturing(true); // brief "setting up" state while we link the account
+    void window.poly.accounts.captureActive().then(async (r) => {
       if (r.ok) {
-        void reload();
+        await reload();
         void refreshUsage();
         flash(`Signed in${r.email ? ` as ${r.email}` : ""}`);
       } else {
         flash(r.error || "sign-in not completed");
       }
+      setCapturing(false);
     });
   }, [reload, refreshUsage, flash]);
 
@@ -295,6 +301,31 @@ export function App() {
         </div>
         <span>polyclaude</span>
       </div>
+    );
+  }
+
+  // No accounts yet (first run, or all profiles deleted): show the welcome /
+  // connect flow instead of the normal layout, which assumes an active account.
+  if (accounts.length === 0) {
+    return (
+      <>
+        <Onboarding
+          version={version}
+          connecting={sessionLive}
+          finishing={capturing}
+          termAvailable={termAvailable}
+          terminal={
+            sessionLive ? <TerminalView key={termKey} opts={termOpts} onExit={onTermExit} onReady={() => {}} /> : null
+          }
+          onConnect={() => launchClaude({ login: true })}
+          onCancel={() => {
+            loginSessionRef.current = false;
+            setSessionLive(false);
+            setView("home");
+          }}
+        />
+        <div className={`toast ${toast ? "show" : ""}`}>{toast}</div>
+      </>
     );
   }
 

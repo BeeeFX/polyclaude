@@ -938,3 +938,133 @@ button:disabled {
   gap: 10px;
   margin-top: 18px;
 }
+
+/* ---- onboarding / first-run ---- */
+.onboard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 32px;
+  animation: fade 0.4s ease;
+}
+.onboard-card {
+  width: min(440px, 100%);
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 36px 34px;
+  text-align: center;
+  animation: rise 0.32s ease;
+}
+.onboard-card.connecting {
+  width: min(760px, 100%);
+  text-align: left;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+.onboard-card .logo {
+  display: inline-flex;
+  filter: drop-shadow(0 0 12px var(--accent-glow));
+  margin-bottom: 14px;
+}
+.onboard-card.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.onboard-slide h1,
+.onboard-connect h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-bottom: 10px;
+}
+.onboard .lead {
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 14px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.onboard-dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin: 22px 0 18px;
+}
+.onboard-dots .odot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s, width 0.2s;
+}
+.onboard-dots .odot.on {
+  width: 20px;
+  border-radius: 4px;
+  background: var(--accent);
+}
+.onboard-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.onboard-connect {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.onboard-connect .lead {
+  margin-bottom: 6px;
+}
+.primary.big {
+  padding: 13px 22px;
+  font-size: 14.5px;
+  border-radius: 12px;
+}
+.link {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 4px;
+  transition: color 0.16s;
+}
+.link:hover {
+  color: var(--accent);
+}
+.onboard-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.onboard-head .logo {
+  margin-bottom: 0;
+}
+.onboard-head h2 {
+  font-size: 17px;
+  font-weight: 700;
+}
+.onboard-term {
+  height: 340px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: #16131e;
+  padding: 8px 6px 6px 10px;
+  margin-bottom: 14px;
+}
+.onboard-foot {
+  letter-spacing: 0.4px;
+}
