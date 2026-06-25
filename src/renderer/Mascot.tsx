@@ -34,7 +34,9 @@ export function Mascot({ size = 22 }: { size?: number }) {
       style={{ display: "block" }}
     >
       {cells.map(({ x, y }) => (
-        <rect key={`${x}-${y}`} x={x} y={y} width={1.04} height={1.04} rx={0.18} fill="var(--accent)" />
+        // Sharp, slightly-overlapping squares: rounded corners + crispEdges left
+        // tiny holes where four blocks met. Pixel-art blocks should be square.
+        <rect key={`${x}-${y}`} x={x} y={y} width={1.06} height={1.06} fill="var(--accent)" />
       ))}
     </svg>
   );
