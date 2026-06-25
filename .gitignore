@@ -23,3 +23,4 @@ vault.json
 # scratch / temp test files
 _*.ts
 _*.tsx
+.git-commit-msg.tmp

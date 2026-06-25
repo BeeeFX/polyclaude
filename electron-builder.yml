@@ -70,6 +70,23 @@ mac:
 
 dmg:
   artifactName: ${productName}-${version}-${arch}.${ext}
+  title: ${productName} ${version}
+  # Custom layout so a "how to open" note (the xattr step for unsigned builds)
+  # sits in the mounted-disk window next to the drag-to-Applications target.
+  window:
+    width: 560
+    height: 420
+  contents:
+    - x: 150
+      y: 180 # the polyclaude.app icon (entry without a path = the app)
+    - x: 410
+      y: 180
+      type: link
+      path: /Applications
+    - x: 280
+      y: 330
+      type: file
+      path: "build/dmg/How to open (read me).txt"
 
 linux:
   category: Development

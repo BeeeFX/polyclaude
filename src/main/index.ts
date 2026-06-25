@@ -28,7 +28,9 @@ function createWindow(): void {
     show: false,
     icon: ICON,
     autoHideMenuBar: true, // no File/Edit/View/… bar (also removed globally below)
-    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    // Standard title bar on every OS: on macOS the previous "hiddenInset" left no
+    // bar to grab (window couldn't be dragged) and overlapped the sidebar logo.
+    title: "polyclaude",
     webPreferences: {
       preload: path.join(dir, "../preload/index.cjs"),
       contextIsolation: true,

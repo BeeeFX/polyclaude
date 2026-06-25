@@ -115,11 +115,20 @@ Grab the latest build for your OS from the
 | OS | File | Notes |
 | --- | --- | --- |
 | **Windows** | `polyclaude-<version>-Setup.exe` | Per-user install, no admin needed. During setup it **asks whether to also install the `pcc` / `polyclaude` command-line tools** — say yes to get both in one go. |
-| **macOS** | `polyclaude-<version>-<arch>.dmg` | `arm64` for Apple Silicon, `x64` for Intel. Unsigned, so the first launch is **right-click → Open** (or *System Settings → Privacy & Security → Open Anyway*). |
+| **macOS** | `polyclaude-<version>-<arch>.dmg` | `arm64` for Apple Silicon, `x64` for Intel. Unsigned — see the one-time "damaged" fix just below. |
 | **Linux** | `polyclaude-<version>.AppImage` | `chmod +x` and run. |
 
-> Installers are **unsigned** for now, so the OS may warn on first launch — that's
-> expected. (Signing/notarization is on the roadmap.)
+> **macOS first launch — "polyclaude is damaged and can't be opened".**
+> It isn't damaged; that's macOS Gatekeeper blocking an unsigned app it downloaded.
+> Drag polyclaude to **Applications**, then run this once in Terminal:
+> ```sh
+> xattr -cr /Applications/polyclaude.app
+> ```
+> and open it normally. (The dmg window includes these steps as a read-me too.)
+> Code-signing/notarization — which removes this entirely — is on the roadmap.
+
+> Windows and Linux builds are unsigned as well, so the OS may show a "more info →
+> run anyway" type prompt on first launch — that's expected.
 
 On macOS the `.dmg` can't prompt during install, so add the CLI from inside the
 app: open it and click **Install pcc** in the *Command-line tool* card on the home

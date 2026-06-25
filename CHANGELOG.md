@@ -17,6 +17,10 @@ Desktop app ships as real installers, with an optional bundled CLI.
   "update available" banner linking to the new release (no silent auto-update;
   that waits on code-signing). Releases no longer carry `.blockmap` / `latest*.yml`
   auto-update files.
+- **macOS window** uses a standard title bar so it can be dragged (the previous
+  frameless style left nothing to grab and overlapped the sidebar logo).
+- **macOS dmg** now includes a "how to open" read-me with the one-time
+  `xattr -cr` step for the unsigned-app "damaged" warning.
 - **Fix:** team/enterprise accounts were mislabeled "Pro" — the plan now reflects
   the active organization, not a personal Pro entitlement.
 - CLI `--version` now tracks `package.json` instead of a hard-coded string.

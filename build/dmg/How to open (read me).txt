@@ -1,0 +1,20 @@
+Opening polyclaude for the first time
+=====================================
+
+polyclaude is not yet notarized by Apple, so the first time you open it
+macOS may warn that it is "damaged and can't be opened". It is NOT damaged —
+that message just means macOS is blocking an app it downloaded from the
+internet (Gatekeeper).
+
+To open it:
+
+  1. Drag the polyclaude icon onto the Applications folder (the arrow on
+     the right of this window).
+
+  2. Open the Terminal app and paste this line, then press Return:
+
+         xattr -cr /Applications/polyclaude.app
+
+  3. Open polyclaude normally from your Applications folder.
+
+You only have to do this once. After that it opens like any other app.
