@@ -31,16 +31,16 @@ files:
 extraMetadata:
   main: dist/main/index.js
 
-# We don't ship an auto-updater, so skip the differential-update artifacts
-# (.blockmap files and latest*.yml) — nobody hand-downloads those, they'd just
-# clutter the Releases page. Re-enable both if/when electron-updater is added.
-differentialPackage: false
+# We don't ship an auto-updater, so don't publish the auto-update files
+# (latest*.yml + .blockmap) — nobody hand-downloads those; they'd just clutter
+# the Releases page. publishAutoUpdate:false skips uploading them; nsis's own
+# differentialPackage:false drops the installer blockmap. Re-enable if
+# electron-updater is added later.
 publish:
   provider: github
   publishAutoUpdate: false
 
 win:
-  differentialPackage: false
   target:
     - target: nsis
       arch: [x64]
@@ -60,7 +60,6 @@ nsis:
 mac:
   category: public.app-category.developer-tools
   icon: build/icon.png
-  differentialPackage: false
   target:
     - target: dmg
       arch: [arm64, x64]
