@@ -1,23 +1,37 @@
+<div align="center">
+
 # polyclaude
 
+**Run several Claude Code accounts from one place — switch the active one in a
+keystroke and keep talking in the same conversation.**
+
+[![CI](https://github.com/BeeeFX/polyclaude/actions/workflows/ci.yml/badge.svg)](https://github.com/BeeeFX/polyclaude/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/BeeeFX/polyclaude?label=release&color=8b5cf6)](https://github.com/BeeeFX/polyclaude/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-lightgrey)
+
+[**⬇ Download**](https://github.com/BeeeFX/polyclaude/releases) · [Desktop app](#desktop-app) · [Commands](#commands) · [How it works](#how-it-works)
+
+</div>
+
+---
+
 A multi-account manager, usage dashboard, and seamless session switcher for
-**Claude Code**.
+**Claude Code**. Log into several Claude accounts once, watch their usage in one
+place, switch the active one with a single keystroke — and keep talking in the same
+conversation, because Claude Code stores your transcript locally and resends it each
+turn. The account only governs auth and billing, so swapping it mid-conversation
+just changes *who pays* while your context carries on.
 
-Log into several Claude accounts once, watch their usage in one place, switch the
-active one with a single keystroke — and keep talking in the same conversation,
-because Claude Code stores your transcript locally and resends it each turn. The
-account only governs auth and billing, so swapping it mid-conversation just
-changes *who pays* while your context carries on.
+Use it two ways that share the exact same core: a **desktop app** (Windows · macOS ·
+Linux) or a **CLI/TUI**. Credentials are encrypted at rest the same way Claude Code
+protects its own — see [Platform support](#platform-support).
 
-> **Platform:** Windows, macOS, and Linux. Credentials are protected at rest the
-> same way Claude Code protects its own — see [Platform support](#platform-support).
-
-> **Disclaimer:** polyclaude is an unofficial, community project and is **not
-> affiliated with, authorized, or endorsed by Anthropic**. It talks to
-> undocumented Claude subscription endpoints (discovered from the Claude Code
-> client) that may change or stop working at any time. Using several accounts to
-> work *past* a plan's usage limits may conflict with Anthropic's terms — that's
-> your call. Provided as-is, with no warranty. Use at your own risk.
+> **Not affiliated with Anthropic.** polyclaude is an unofficial, community project
+> that talks to undocumented Claude subscription endpoints (discovered from the
+> Claude Code client), which may change or break at any time. Using multiple
+> accounts to work *past* a plan's usage limits may conflict with Anthropic's terms
+> — that's your call. Provided as-is, with no warranty.
 
 ```
    ██           ██     Meet Poly — polyclaude's purple block mascot, in the
