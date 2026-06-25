@@ -16,14 +16,17 @@ directories:
   output: release
   buildResources: build
 
-# Only the built output + assets are shipped; production node_modules are added
-# automatically by electron-builder. devDependencies and sources are excluded.
+# Keep electron-builder's default inclusion (**/* + production node_modules,
+# dev deps auto-pruned) and only TRIM source/test bloat. NOTE: these must all be
+# negations — an include-only list would drop node_modules and ship a broken app.
 files:
-  - dist/**/*
-  - assets/**/*
-  - package.json
-  - "!**/*.{md,map,ts,tsx}"
-  - "!**/{tsconfig.json,vite.config.ts,electron-builder.yml}"
+  - "!src/**"
+  - "!test/**"
+  - "!scripts/**"
+  - "!.github/**"
+  - "!**/*.{map,ts,tsx}"
+  - "!**/tsconfig*.json"
+  - "!{vite.config.ts,electron-builder.yml,CHANGELOG.md,README.md}"
 
 extraMetadata:
   main: dist/main/index.js
@@ -31,6 +34,8 @@ extraMetadata:
 win:
   target:
     - target: nsis
+      arch: [x64]
+    - target: zip # portable, no-install build (also used to smoke-test packaging)
       arch: [x64]
   icon: build/icon.png
 
