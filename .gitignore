@@ -1,6 +1,7 @@
 # dependencies & build output
 node_modules/
 dist/
+release/
 *.tsbuildinfo
 
 # logs & OS cruft
@@ -22,3 +23,4 @@ vault.json
 # scratch / temp test files
 _*.ts
 _*.tsx
+.git-commit-msg.tmp

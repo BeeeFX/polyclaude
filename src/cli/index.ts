@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { registerAccountCommands } from "./commands/account.js";
 import { registerUsageCommands } from "./commands/usage.js";
 import { registerConfigCommands } from "./commands/config.js";
@@ -8,6 +11,16 @@ import { registerConversationCommands } from "./commands/conversations.js";
 import { registerStatuslineCommand } from "./commands/statusline.js";
 import { isSupported } from "../core/crypto.js";
 import { fail } from "./format.js";
+
+// Single source of truth for the version: package.json (../../ from dist/cli).
+function pkgVersion(): string {
+  try {
+    const p = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../package.json");
+    return (JSON.parse(readFileSync(p, "utf8")) as { version?: string }).version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
 
 const program = new Command();
 
@@ -18,7 +31,7 @@ program
       "Store several logged-in accounts, watch usage, switch with one key, and\n" +
       "auto-fail-over when an account hits its limit. Run with no command for the dashboard."
   )
-  .version("0.1.0");
+  .version(pkgVersion());
 
 registerAccountCommands(program);
 registerUsageCommands(program);
@@ -43,7 +56,7 @@ program.action(async () => {
 });
 
 if (!isSupported()) {
-  fail("polyclaude currently requires Windows (uses DPAPI for at-rest credential encryption).");
+  fail(`polyclaude doesn't support ${process.platform} yet (no at-rest credential store).`);
   process.exit(1);
 }
 

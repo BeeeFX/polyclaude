@@ -1,0 +1,95 @@
+appId: com.beeefx.polyclaude
+productName: polyclaude
+copyright: © BeeeFX
+
+# Ship unpacked (no asar): the bundled CLI shim re-runs this app's binary in
+# Node mode against dist/cli/index.js, and node-pty's native prebuild loads from
+# disk — both are simplest and most reliable when files aren't inside an archive.
+asar: false
+
+# node-pty 1.1.0 ships N-API prebuilds that load under Electron 33 as-is, so do
+# NOT let electron-builder rebuild native deps from source (winpty's build needs
+# a toolchain we don't have, and the prebuild is what `npm run gui` already uses).
+npmRebuild: false
+
+directories:
+  output: release
+  buildResources: build
+
+# Keep electron-builder's default inclusion (**/* + production node_modules,
+# dev deps auto-pruned) and only TRIM source/test bloat. NOTE: these must all be
+# negations — an include-only list would drop node_modules and ship a broken app.
+files:
+  - "!src/**"
+  - "!test/**"
+  - "!scripts/**"
+  - "!.github/**"
+  - "!**/*.{map,ts,tsx}"
+  - "!**/tsconfig*.json"
+  - "!{vite.config.ts,electron-builder.yml,CHANGELOG.md,README.md}"
+
+extraMetadata:
+  main: dist/main/index.js
+
+# Windows & Linux self-update via electron-updater, which reads latest*.yml from
+# the release — so publish the auto-update files. macOS is notify-only (Squirrel
+# won't update an unsigned app); its latest-mac.yml + dmg/zip blockmaps are
+# stripped by the release workflow's cleanup job.
+publish:
+  provider: github
+  publishAutoUpdate: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: zip # portable, no-install build (also used to smoke-test packaging)
+      arch: [x64]
+  icon: build/icon.png
+  # Unsigned app → don't reject the (also unsigned) update during auto-update.
+  verifyUpdateCodeSignature: false
+
+nsis:
+  oneClick: false
+  perMachine: false # per-user install → no admin prompt
+  allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-${version}-Setup.${ext}
+
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.png
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  # Unsigned builds: the app is ad-hoc signed so it runs after a right-click→Open.
+  identity: null
+
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  title: ${productName} ${version}
+  # Custom layout so a "how to open" note (the xattr step for unsigned builds)
+  # sits in the mounted-disk window next to the drag-to-Applications target.
+  window:
+    width: 560
+    height: 420
+  contents:
+    - x: 150
+      y: 180 # the polyclaude.app icon (entry without a path = the app)
+    - x: 410
+      y: 180
+      type: link
+      path: /Applications
+    - x: 280
+      y: 330
+      type: file
+      path: "build/dmg/How to open (read me).txt"
+
+linux:
+  category: Development
+  icon: build/icon.png
+  target:
+    - AppImage

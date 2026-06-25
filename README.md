@@ -1,49 +1,62 @@
+<div align="center">
+
 # polyclaude
 
+**Run several Claude Code accounts from one place — switch the active one in a
+keystroke and keep talking in the same conversation.**
+
+[![CI](https://github.com/BeeeFX/polyclaude/actions/workflows/ci.yml/badge.svg)](https://github.com/BeeeFX/polyclaude/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/BeeeFX/polyclaude?label=release&color=8b5cf6)](https://github.com/BeeeFX/polyclaude/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-lightgrey)
+
+[**⬇ Download**](https://github.com/BeeeFX/polyclaude/releases) · [Desktop app](#desktop-app) · [Commands](#commands) · [How it works](#how-it-works)
+
+</div>
+
+---
+
 A multi-account manager, usage dashboard, and seamless session switcher for
-**Claude Code**.
+**Claude Code**. Log into several Claude accounts once, watch their usage in one
+place, switch the active one with a single keystroke — and keep talking in the same
+conversation, because Claude Code stores your transcript locally and resends it each
+turn. The account only governs auth and billing, so swapping it mid-conversation
+just changes *who pays* while your context carries on.
 
-Log into several Claude accounts once, watch their usage in one place, switch the
-active one with a single keystroke — and keep talking in the same conversation,
-because Claude Code stores your transcript locally and resends it each turn. The
-account only governs auth and billing, so swapping it mid-conversation just
-changes *who pays* while your context carries on.
+Use it two ways that share the exact same core: a **desktop app** (Windows · macOS ·
+Linux) or a **CLI/TUI**. Credentials are encrypted at rest the same way Claude Code
+protects its own — see [Platform support](#platform-support).
 
-> **Platform:** Windows (credential encryption uses DPAPI). macOS/Linux key
-> storage is on the roadmap.
+> **Not affiliated with Anthropic.** polyclaude is an unofficial, community project
+> that talks to undocumented Claude subscription endpoints (discovered from the
+> Claude Code client), which may change or break at any time. Using multiple
+> accounts to work *past* a plan's usage limits may conflict with Anthropic's terms
+> — that's your call. Provided as-is, with no warranty.
 
-> **Disclaimer:** polyclaude is an unofficial, community project and is **not
-> affiliated with, authorized, or endorsed by Anthropic**. It talks to
-> undocumented Claude subscription endpoints (discovered from the Claude Code
-> client) that may change or stop working at any time. Using several accounts to
-> work *past* a plan's usage limits may conflict with Anthropic's terms — that's
-> your call. Provided as-is, with no warranty. Use at your own risk.
+## Screenshots
 
-```
-   ██           ██     Meet Poly — polyclaude's purple block mascot, in the
-     ██       ██       spirit of Claude's pixel creature. On a dark terminal
-    █████████████      she's purple with dark eye-holes. She greets you on the
-    ████  ███  ██      home screen with a friendly "Welcome back", next to
-    █████████████      Tips, Recent activity, and a "? for shortcuts" hint.
-  █████████████████
-  █████████████████
-    █████████████
-      ██     ██
-     ███     ███
-```
+<div align="center">
 
+<img src="docs/Interface.png" alt="polyclaude desktop app: account sidebar, live 5-hour and weekly usage, session defaults, the command-line-tool installer, and recent conversations" width="760">
 
-The home screen mirrors Claude Code's welcome: a purple-bordered box with
-"Welcome back, &lt;name&gt;!", your plan + working directory, a **Tips** panel, and
-**Recent activity** (your latest conversations). polyclaude asks your name the
-first time you sign in — change it any time with `pcc set name <you>`.
+<br><br>
+
+<img src="docs/Welcome_Page_Tutorial.png" alt="First-run welcome tour" width="380">&nbsp;
+<img src="docs/First_Login.png" alt="Connect your Claude account screen" width="380">
+
+</div>
+
+> Meet **Poly** — polyclaude's purple block mascot, in the spirit of Claude's
+> pixel creature. She greets you on the home screen ("Welcome back, &lt;name&gt;!");
+> polyclaude asks your name the first time you sign in (`pcc set name <you>`).
 
 ---
 
 ## Highlights
 
 - **Encrypted multi-account vault** — store many logged-in accounts; tokens are
-  encrypted at rest with Windows DPAPI (per-user, no master password).
+  encrypted at rest per-OS (Windows DPAPI · macOS Keychain · Linux key-file), with
+  no master password to manage. See [Platform support](#platform-support).
 - **One-key switch** — flip the active account; resume your chat with `claude -c`.
 - **Live usage dashboard** (Ink TUI) — rolling 5-hour / 7-day token usage per
   account, authoritative rate-limit status + reset times, and model / effort /
@@ -53,11 +66,15 @@ first time you sign in — change it any time with `pcc set name <you>`.
   context is preserved.
 - **All local** — nothing is sent anywhere; usage is read from Claude Code's own
   transcripts and rate-limit events.
+- **Two ways to use it** — a CLI/TUI *and* a clean desktop app (Electron) that
+  share the exact same core. See [Desktop app](#desktop-app).
 
 ## How it works
 
-- Claude Code keeps the active account in `~/.claude/.credentials.json` (an OAuth
-  blob). On Windows this file is the source of truth — no competing OS vault.
+- Claude Code keeps the active account where the OS keeps it: the
+  `~/.claude/.credentials.json` file on Windows/Linux, and the login Keychain on
+  macOS (with the same file as a fallback). polyclaude reads and writes whichever
+  applies — see [Platform support](#platform-support).
 - polyclaude keeps an encrypted vault (`~/.polyclaude/vault.json`) of several
   blobs and swaps the active one on demand (backing up the previous first).
 - **Plan usage** (current-session and weekly **percentages** + reset times) is
@@ -85,7 +102,7 @@ typing `claude`:
 npm link                # registers global `polyclaude` and `pcc` commands
 ```
 
-Now open any PowerShell window and run `polyclaude`. After pulling updates,
+Now open any terminal and run `polyclaude`. After pulling updates,
 `npm run build` refreshes the global command (it points at the build). Remove it
 later with `npm uninstall -g polyclaude`. Prefer a fixed copy over a live link?
 Use `npm install -g .` instead.
@@ -95,6 +112,84 @@ You can also run it without installing, straight from the repo:
 ```sh
 npm run pcc -- <command> [args]
 ```
+
+## Desktop app
+
+Prefer a window over a terminal? polyclaude ships a desktop app (Electron) that
+shares the **exact same core** as the CLI/TUI — switching, the encrypted vault,
+live usage, and settings all run through the same code.
+
+### Download an installer
+
+Grab the latest build for your OS from the
+[**Releases**](https://github.com/BeeeFX/polyclaude/releases) page:
+
+| OS | File | Notes |
+| --- | --- | --- |
+| **Windows** | `polyclaude-<version>-Setup.exe` | Per-user install, no admin needed. During setup it **asks whether to also install the `pcc` / `polyclaude` command-line tools** — say yes to get both in one go. |
+| **macOS** | `polyclaude-<version>-<arch>.dmg` | `arm64` for Apple Silicon, `x64` for Intel. Unsigned — see the one-time "damaged" fix just below. |
+| **Linux** | `polyclaude-<version>.AppImage` | `chmod +x` and run. |
+
+> **macOS first launch — "polyclaude is damaged and can't be opened".**
+> It isn't damaged; that's macOS Gatekeeper blocking an unsigned app it downloaded.
+> Drag polyclaude to **Applications**, then run this once in Terminal:
+> ```sh
+> xattr -cr /Applications/polyclaude.app
+> ```
+> and open it normally. (The dmg window includes these steps as a read-me too.)
+> Code-signing/notarization — which removes this entirely — is on the roadmap.
+
+> Windows and Linux builds are unsigned as well, so the OS may show a "more info →
+> run anyway" type prompt on first launch — that's expected.
+
+On macOS the `.dmg` can't prompt during install, so add the CLI from inside the
+app: open it and click **Install pcc** in the *Command-line tool* card on the home
+screen. The same button works on Windows if you skipped it at install time. Either
+way it puts `pcc` and `polyclaude` on your PATH, running the app's own binary in
+CLI mode (no separate Node install).
+
+### Updating
+
+The app checks GitHub for a newer release on launch and shows a banner when one
+exists. What the banner does depends on the OS:
+
+- **Windows & Linux** — **self-update**. The banner says *Update & restart*; click
+  it and the app downloads the new version and relaunches into it. No re-download.
+- **macOS** — **notify-only**. The banner says *Download* and opens the Releases
+  page; you re-download the `.dmg` and reinstall (drag over the old app, then the
+  one-time `xattr -cr` if macOS complains). Silent auto-update on macOS needs
+  Apple code-signing/notarization, which is on the roadmap — until then this is the
+  best an unsigned app can do.
+
+### Run from source
+
+```sh
+npm run gui        # build + launch the desktop app
+npm run gui:dev    # hot-reloading dev mode (Vite + Electron)
+```
+
+To build the installers yourself: `npm run dist:win` / `dist:mac` / `dist:linux`
+(each OS must be built on its own platform; CI does all three on a tag push).
+
+What you get: a clean dark UI with your accounts and per-account usage in the
+sidebar, animated 5h / 7d usage for the active account, one-click account
+switching, model / effort / thinking / auto-switch controls, and your recent
+conversations. The CLI and TUI are unchanged — the GUI is purely additive.
+
+**Claude runs *inside* the window.** "Launch Claude" (or clicking a recent
+conversation) opens the full Claude Code TUI in an embedded terminal
+(xterm.js + a real pty via `node-pty`), so you get the complete experience —
+including image paste — without leaving the app. The account sidebar stays
+visible the whole time, so you can switch accounts mid-session; because a running
+session holds its token in memory, a one-click **Restart** resumes the same
+conversation on the newly-selected account.
+
+> `node-pty` ships N-API prebuilt binaries, so no native compiler is needed. If
+> the binary ever can't load on your platform, the app degrades gracefully and
+> falls back to opening Claude in your system terminal.
+
+> **Roadmap:** code-signed / notarized installers, and desktop notifications when
+> an account nears its limit.
 
 ## Quick start (beginner-friendly)
 
@@ -132,7 +227,7 @@ Prefer commands? They still exist: `pcc login`, `pcc add <label>`.
 | `pcc chat` | Multi-turn chat that keeps context and auto-switches |
 | `pcc probe` | Tiny call to refresh the active account's live limit status |
 | `pcc launch` / `pcc code` | Launch interactive Claude Code with your saved settings |
-| `pcc statusline [--install]` | Show every account's usage in Claude Code's status line |
+| `pcc statusline [--install] [--uninstall] [--force]` | Show every account's usage in Claude Code's status line |
 | `pcc config` | Show settings |
 | `pcc set <key> <value>` | Set model / effort / thinking / autoswitch / budgets |
 | `pcc order <labels...>` | Set the failover order |
@@ -167,9 +262,35 @@ Code's status line:
 pcc statusline --install
 ```
 
-Now the bottom of Claude Code shows e.g. `polyclaude ● work 92% · ○ personal 12% · 5h`
-(active account in bold; red/yellow/green by level). It reads cached usage and
-refreshes the active account at most once every ~90s, so it never hammers the API.
+polyclaude also **offers to set this up on first run** — the dashboard asks once
+whether to show its usage inside Claude Code, so you don't have to remember the
+command. You can always toggle it manually with `--install` / `--uninstall`.
+
+Now the bottom of Claude Code shows two rows:
+
+```
+polyclaude ● work 92% · ○ personal 12%  · 5h · work 7d 88%
+  ↳ to switch account: exit Claude (Ctrl+C twice) → press g
+```
+
+The first row is every account's 5h usage (active account in bold; red/yellow/green
+by level), plus the active account's **weekly (7d)** usage — the window that bites
+Max users. The second is a reminder of how to switch accounts mid-chat — **exit Claude
+first** (press `Ctrl+C` twice), then press `g` to continue this conversation on another
+account. Those keys act in polyclaude, not inside Claude (Claude has the keyboard while
+you're chatting), which is why switching means briefly stepping out.
+
+If you launched Claude from the polyclaude dashboard, exiting drops you right back into
+it, so the hint just says "press g". If you started Claude on its own, the hint instead
+reminds you to `run polyclaude` first. When the active account nears its
+5h limit (≥85%) the hint turns into a near-limit warning.
+
+It reads cached usage and refreshes the active account at most once every ~90s, so it
+never hammers the API.
+
+Remove it any time with `pcc statusline --uninstall` (this only touches polyclaude's own
+entry — a custom status line you'd set up yourself is left alone, and `--install` won't
+overwrite one without `--force`).
 
 Prefer a separate view? Run `pcc usage --all --watch` in a split pane.
 
@@ -184,18 +305,33 @@ pcc set budget5h 50000000   # optional cap to turn usage into % bars
 pcc order work personal     # failover preference order
 ```
 
+## Platform support
+
+polyclaude runs on **Windows, macOS, and Linux**, and protects stored credentials
+at rest the same way Claude Code protects its own:
+
+| OS | polyclaude vault (`~/.polyclaude/vault.json`) | Active account (what Claude reads) |
+| --- | --- | --- |
+| **Windows** | DPAPI, per-user (decryptable only by your Windows user on this machine) | `~/.claude/.credentials.json` (plaintext, Claude Code's design) |
+| **macOS** | AES-256-GCM; the key lives in your login **Keychain** | the **Keychain** item `Claude Code-credentials` — polyclaude updates it **and** writes `~/.claude/.credentials.json` (Claude's fallback), reading the file first to avoid a Keychain prompt |
+| **Linux** | AES-256-GCM; the key is a `0600` file at `~/.polyclaude/vault.key` | `~/.claude/.credentials.json` (mode `0600`) |
+
+On macOS, reading the Keychain may show a one-time permission prompt the first
+time polyclaude captures your signed-in account; after that it works off the file.
+
 ## Data & security
 
-- Vault: `~/.polyclaude/vault.json` — every account's credentials are
-  DPAPI-encrypted (decryptable only by your Windows user on this machine).
-  Tokens are **never** written to disk in plaintext by polyclaude.
+- Vault: `~/.polyclaude/vault.json` — every account's credentials are encrypted at
+  rest (see the table above). Tokens are **never** written to disk in plaintext by
+  polyclaude.
 - Before switching, the currently-signed-in account is captured into the
   encrypted vault if it isn't already there, so a switch can't lose an account —
   there are no plaintext backup files.
 - Switch log (for usage attribution): `~/.polyclaude/switches.jsonl`.
 - Settings: `~/.polyclaude/settings.json`.
-- The live active account lives in Claude Code's own `~/.claude/.credentials.json`
-  (plaintext, by Claude Code's design — not something polyclaude controls).
+- The live active account is owned by Claude Code (the file is plaintext by its
+  design on Windows/Linux; the Keychain on macOS) — polyclaude reads/writes it but
+  doesn't change how Claude stores it.
 
 ## A note on usage limits
 
@@ -212,8 +348,12 @@ them.
 ## Tests
 
 ```sh
-npm run typecheck   # full TS typecheck
+npm test            # typecheck (CLI + GUI) + all smoke tests below
+npm run typecheck   # full TS typecheck (core/cli/tui + Electron main/preload)
+npm run typecheck:gui    # renderer (React) typecheck
 npm run smoke       # headless render check of the dashboard
+npm run test:statusline  # status-line rendering + install/uninstall
+npm run test:crypto      # at-rest encrypt/decrypt round-trip on this OS
 ```
 
 ## Roadmap
@@ -225,9 +365,15 @@ npm run smoke       # headless render check of the dashboard
 - [x] TUI dashboard with model / effort / thinking toggles
 - [x] In-app sign-in + first-run onboarding (no pre-commands)
 - [x] Conversation history browser (resume past chats)
-- [ ] macOS / Linux credential encryption
+- [x] macOS / Linux credential encryption (Keychain · 0600 key-file)
+- [x] Desktop app (Electron) sharing the same core
+- [x] Embedded terminal in the desktop app (run Claude in-window, paste images)
+- [x] In-app sign-in, rename, delete + drag-to-reorder accounts (desktop)
+- [x] Cross-platform installers (Windows / macOS / Linux) built in CI
+- [x] Optional bundled CLI (install `pcc` with the app, or one click in-app)
+- [x] Self-update on Windows & Linux (electron-updater); notify-only on macOS
+- [ ] Code-signed / notarized installers (enables silent auto-update on macOS too)
 - [ ] Background limit watcher with desktop notifications
-- [ ] Optional VS Code panel sharing the same core
 
 ## Contributing
 

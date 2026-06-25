@@ -1,6 +1,6 @@
 {
   "name": "polyclaude",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Multi-account manager, usage dashboard, and seamless session switcher for Claude Code",
   "type": "module",
   "license": "MIT",
@@ -26,36 +26,62 @@
     "polyclaude": "./dist/cli/index.js",
     "pcc": "./dist/cli/index.js"
   },
+  "main": "dist/main/index.js",
   "files": [
     "dist",
+    "assets",
     "README.md",
     "LICENSE"
   ],
-  "os": [
-    "win32"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:gui": "tsc -p tsconfig.json && vite build",
     "dev": "tsx src/cli/index.ts",
     "pcc": "tsx src/cli/index.ts",
+    "gui": "npm run build:gui && electron .",
+    "pack": "npm run build:gui && electron-builder --dir",
+    "dist": "npm run build:gui && electron-builder",
+    "dist:win": "npm run build:gui && electron-builder --win",
+    "dist:mac": "npm run build:gui && electron-builder --mac",
+    "dist:linux": "npm run build:gui && electron-builder --linux",
+    "gen:icon": "node scripts/gen-icon.mjs",
+    "gui:dev": "tsc -p tsconfig.json && concurrently -k -n vite,electron \"vite\" \"wait-on tcp:127.0.0.1:5173 && cross-env POLY_DEV_SERVER=http://localhost:5173 electron .\"",
     "smoke": "tsx test/tui-smoke.tsx",
+    "test:statusline": "tsx test/statusline-smoke.ts",
+    "test:crypto": "tsx test/crypto-smoke.ts",
+    "test:vault": "tsx test/vault-smoke.ts",
+    "test": "npm run typecheck && npm run typecheck:gui && npm run smoke && npm run test:statusline && npm run test:crypto && npm run test:vault",
     "typecheck": "tsc --noEmit",
+    "typecheck:gui": "tsc -p src/renderer/tsconfig.json",
     "prepare": "npm run build"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "commander": "^12.1.0",
+    "electron-updater": "^6.3.9",
     "ink": "^5.2.1",
+    "node-pty": "^1.1.0",
     "picocolors": "^1.1.1",
-    "react": "^18.3.1"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
     "ink-testing-library": "^4.0.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "wait-on": "^8.0.1"
   }
 }

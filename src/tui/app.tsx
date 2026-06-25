@@ -6,6 +6,7 @@ import * as vault from "../core/vault.js";
 import * as settings from "../core/settings.js";
 import * as conversations from "../core/conversations.js";
 import * as liveusage from "../core/liveusage.js";
+import * as statuslineCore from "../core/statusline.js";
 import { switchTo } from "../core/switcher.js";
 import { authStatus, type AuthStatus } from "../core/claude.js";
 import type { AccountMeta, AccountUsage } from "../types.js";
@@ -19,7 +20,7 @@ export interface DashboardResult {
 }
 
 const MODEL_CYCLE = ["", "opus", "sonnet", "haiku"];
-const EFFORT_CYCLE: Array<settings.Effort | ""> = ["", "low", "medium", "high", "max"];
+const EFFORT_CYCLE: Array<settings.Effort | ""> = ["", "low", "medium", "high", "xhigh", "max"];
 const CONV_WINDOW = 12;
 const USAGE_REFRESH_MS = 5 * 60_000;
 
@@ -83,6 +84,7 @@ export function App({ result }: { result: DashboardResult }) {
   const [activeUsage, setActiveUsage] = useState<AccountUsage | null>(null);
   const [picking, setPicking] = useState(false); // "continue on which account?" picker
   const [pickSel, setPickSel] = useState(0);
+  const [offering, setOffering] = useState(false); // first-run: offer to install the status line
   const [, setTick] = useState(0); // forces re-render so "updated …s ago" counts up
   const fetchingAll = useRef(false);
 
@@ -187,6 +189,36 @@ export function App({ result }: { result: DashboardResult }) {
   const activeMeta = accounts.find((a) => a.label === activeLabel);
   const name = cfg?.name?.trim() || activeMeta?.fullName || nameFromEmail(activeMeta?.email) || "there";
 
+  // First-run: once you have an account, offer to add the Claude Code status line
+  // (so polyclaude's usage shows while you're in a chat). Ask at most once.
+  useEffect(() => {
+    if (!loaded || !cfg || isEmpty || cfg.statuslineOffered) return;
+    let cancelled = false;
+    void statuslineCore.isInstalled().then((installed) => {
+      if (!cancelled && !installed) setOffering(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loaded, cfg, isEmpty]);
+
+  const acceptOffer = useCallback(async () => {
+    setOffering(false);
+    await settings.update({ statuslineOffered: true });
+    const r = await statuslineCore.install();
+    if (r.ok) flash("Status line installed — you'll see polyclaude usage inside Claude");
+    else if (r.reason === "foreign-exists")
+      flash("A custom status line exists — run: polyclaude statusline --install --force");
+    else flash("Couldn't install the status line");
+    void reload();
+  }, [reload]);
+
+  const declineOffer = useCallback(async () => {
+    setOffering(false);
+    await settings.update({ statuslineOffered: true });
+    void reload();
+  }, [reload]);
+
   useInput((input, key) => {
     if (input === "q" || (key.ctrl && input === "c")) {
       result.action = "quit";
@@ -230,6 +262,13 @@ export function App({ result }: { result: DashboardResult }) {
         exit();
       } else if (key.escape || input === "b") setView("dashboard");
       return;
+    }
+
+    // Dashboard — first-run status-line offer (y = install, n/Esc = not now)
+    if (offering) {
+      if (input === "y" || input === "Y") void acceptOffer();
+      else if (input === "n" || input === "N" || key.escape) void declineOffer();
+      return; // swallow other keys while the offer is up
     }
 
     // Dashboard — "continue on which account?" picker
@@ -536,7 +575,9 @@ export function App({ result }: { result: DashboardResult }) {
 
   // ---- Dashboard ----------------------------------------------------------
   const u = activeUsage ?? activeMeta?.usage;
-  const usageUnavailable = !!u && (u.error != null || (u.fiveHourPct == null && u.sevenDayPct == null));
+  // Only "unavailable" when there's genuinely no data; a stale value still carries
+  // an error (the reason) but should keep showing its last-good bars.
+  const usageUnavailable = !!u && u.fiveHourPct == null && u.sevenDayPct == null;
   const activePct = u && u.error == null ? u.fiveHourPct ?? null : null;
   const nextAcct = pickNextAccount();
   const runningLow = activePct != null && activePct >= 85 && !!nextAcct;
@@ -636,9 +677,13 @@ export function App({ result }: { result: DashboardResult }) {
           <Text bold>
             Plan usage <Text dimColor>· {planName}</Text>
           </Text>
-          <Text dimColor>
-            {busy ? "updating…" : u?.fetchedAt ? `updated ${fmtAgoShort(u.fetchedAt)}` : ""}
-          </Text>
+          {busy ? (
+            <Text dimColor>updating…</Text>
+          ) : u?.stale ? (
+            <Text color="yellow">stale · {fmtAgoShort(u.fetchedAt)} — open Claude to refresh</Text>
+          ) : u?.fetchedAt ? (
+            <Text dimColor>updated {fmtAgoShort(u.fetchedAt)}</Text>
+          ) : null}
         </Box>
         {!u ? (
           <Text dimColor>loading usage…</Text>
@@ -709,7 +754,16 @@ export function App({ result }: { result: DashboardResult }) {
 
       {/* footer */}
       <Box marginTop={1} flexDirection="column">
-        {renaming ? (
+        {offering ? (
+          <Text color={POLY_PURPLE}>
+            Show polyclaude's account usage inside Claude Code?{" "}
+            <Text dimColor>(adds a status line) — </Text>
+            <Text color="cyan">y</Text>
+            <Text dimColor> yes · </Text>
+            <Text color="cyan">n</Text>
+            <Text dimColor> not now</Text>
+          </Text>
+        ) : renaming ? (
           <Text>
             Rename <Text color="green">{renaming.label}</Text> to:{" "}
             <Text color="cyan">{renaming.value}</Text>

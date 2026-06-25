@@ -36,11 +36,14 @@ function spawnInteractive(args: string[], env: NodeJS.ProcessEnv, cwd?: string):
 }
 
 /**
- * The dashboard renders in a loop. Actions that don't touch the terminal (like
- * importing the current account) return to the dashboard. Actions that hand the
- * terminal to a child process (launch / resume Claude, browser sign-in) release
- * stdin to that child and then EXIT cleanly — re-rendering Ink after a child can
- * leave input frozen on Windows, so we let the user reopen with `pcc` instead.
+ * The dashboard renders in a loop. Launch / resume Claude run it as a child and
+ * then loop back to the dashboard when Claude exits, so polyclaude stays the hub
+ * (this is why the status-line hint can just say "exit Claude → press g"). Only
+ * the browser sign-in (`login`) exits cleanly afterwards — re-rendering Ink after
+ * that flow can leave input frozen on Windows, so we let the user reopen with `pcc`.
+ *
+ * Claude is spawned with POLYCLAUDE_HOST set so the status line (a grandchild via
+ * Claude) knows it was launched from polyclaude and tailors its switch-account hint.
  */
 export async function runDashboard(): Promise<void> {
   if (!process.stdout.isTTY) {
@@ -63,14 +66,14 @@ export async function runDashboard(): Promise<void> {
       const s = await settings.load();
       const args: string[] = [];
       if (s.model) args.push("--model", s.model);
-      if (s.effort) args.push("--effort", s.effort);
-      const env = { ...process.env };
+      if (s.effort && settings.supportsEffort(s.model)) args.push("--effort", s.effort);
+      const env: NodeJS.ProcessEnv = { ...process.env, POLYCLAUDE_HOST: "1" };
       if (s.thinking) env.MAX_THINKING_TOKENS = String(s.thinkingBudget);
       await spawnInteractive(args, env, result.cwd);
       continue; // Claude exited → return to the dashboard
     }
     if (result.action === "resume" && result.resumeId) {
-      await spawnInteractive(["--resume", result.resumeId], { ...process.env }, result.cwd);
+      await spawnInteractive(["--resume", result.resumeId], { ...process.env, POLYCLAUDE_HOST: "1" }, result.cwd);
       continue; // Claude exited → return to the dashboard
     }
     if (result.action === "login") {

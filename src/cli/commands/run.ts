@@ -41,7 +41,7 @@ async function runOpts() {
   const s = await settings.load();
   return {
     model: s.model || undefined,
-    effort: s.effort || undefined,
+    effort: settings.supportsEffort(s.model) ? s.effort || undefined : undefined,
     thinking: s.thinking,
     thinkingBudget: s.thinkingBudget,
   };
@@ -158,11 +158,12 @@ export function registerRunCommands(program: Command): void {
       const args: string[] = [];
       if (opts.continue) args.push("-c");
       if (s.model) args.push("--model", s.model);
-      if (s.effort) args.push("--effort", s.effort);
+      const effort = settings.supportsEffort(s.model) ? s.effort : "";
+      if (effort) args.push("--effort", effort);
       args.push(...(extraArgs ?? []));
       const env = { ...process.env };
       if (s.thinking) env.MAX_THINKING_TOKENS = String(s.thinkingBudget);
-      ok(`Launching Claude Code${s.model ? ` (${s.model}${s.effort ? `, ${s.effort}` : ""})` : ""}…\n`);
+      ok(`Launching Claude Code${s.model ? ` (${s.model}${effort ? `, ${effort}` : ""})` : ""}…\n`);
       const child = spawn(resolveClaudeBin(), args, { stdio: "inherit", env });
       child.on("exit", (code) => process.exit(code ?? 0));
     });

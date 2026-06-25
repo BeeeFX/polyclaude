@@ -36,6 +36,9 @@ export interface AccountUsage {
   /** epoch ms when this was fetched */
   fetchedAt: number;
   error?: string;
+  /** true when this is a last-good cached value we couldn't refresh (e.g. the
+   *  active account's token expired — Claude Code must refresh it on next use). */
+  stale?: boolean;
 }
 
 /** Non-secret metadata we keep for display/selection. */
@@ -56,6 +59,10 @@ export interface AccountMeta {
   rateLimitTier?: string;
   /** cached real usage (percentages + resets) */
   usage?: AccountUsage;
+  /** epoch ms before which no process should re-fetch usage for this account —
+   *  a cross-process rate guard so GUI + status line + CLI don't hammer (429) the
+   *  usage API together. */
+  usageNextFetchAt?: number;
   /** epoch ms */
   addedAt: number;
   /** epoch ms */

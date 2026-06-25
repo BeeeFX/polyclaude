@@ -1,0 +1,61 @@
+name: release
+
+# Push a tag like v0.2.0 to build installers for all three OSes and upload them
+# to a GitHub Release (created as a draft — review the assets, then publish).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win # → NSIS installer (.exe)
+          - os: macos-latest
+            platform: mac # → .dmg + .zip (arm64 + x64)
+          - os: ubuntu-latest
+            platform: linux # → AppImage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck && npm run typecheck:gui
+      - name: Build renderer + main
+        run: npm run build:gui
+      - name: Package & publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No code-signing certs in CI: build unsigned artifacts.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx --no-install electron-builder --${{ matrix.platform }} --publish always
+
+  # macOS is notify-only (no electron-updater), so its auto-update artifacts are
+  # dead weight: strip latest-mac.yml and the dmg/zip .blockmap files once all
+  # builds have uploaded. The Windows/Linux update files (latest.yml,
+  # latest-linux.yml, Setup.exe.blockmap) are kept — electron-updater needs them.
+  cleanup:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove macOS-only auto-update artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          for a in $(gh release view "$tag" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -E '\.dmg\.blockmap$|mac\.zip\.blockmap$|^latest-mac\.yml$' || true); do
+            echo "deleting $a"
+            gh release delete-asset "$tag" "$a" -R "$GITHUB_REPOSITORY" --yes || true
+          done

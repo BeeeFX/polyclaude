@@ -12,10 +12,19 @@ import type { AccountUsage, CredentialsFile } from "../types.js";
  * (or retrying a failing refresh in a tight loop) gets the whole account
  * rate-limited. When a refresh fails we back off and keep showing the last
  * known usage instead of hammering.
+ *
+ * The ACTIVE account's token is NEVER refreshed by polyclaude — Claude Code owns
+ * it (the refresh token rotates, and competing over it rate-limits the token
+ * endpoint / can invalidate the login). When the active token is expired we just
+ * show the last-known numbers; Claude Code refreshes it the next time you use it.
+ * Only INACTIVE accounts (whose tokens polyclaude fully manages) are refreshed.
  */
 
 const REFRESH_BACKOFF_MS = 10 * 60_000; // after a failed refresh, wait before retrying
 const backoffUntil = new Map<string, number>();
+/** Friendly reason of the last refresh failure per label, so we keep reporting
+ *  the real cause (e.g. "sign in again") while backed off. */
+const lastFailReason = new Map<string, string>();
 
 /** For the active account use the live credentials file (Claude Code keeps it
  *  fresh); otherwise use the vault copy. */
@@ -49,23 +58,28 @@ async function callWithAuth<T>(label: string, call: (token: string) => Promise<T
     if ((e as Error).message !== "unauthorized") throw e;
   }
 
-  // 2a. Never refresh the ACTIVE account's token — Claude Code owns it and the
-  //     refresh token rotates; competing over it can invalidate the login.
-  //     It will be refreshed the next time you actually use Claude.
+  // 2a. NEVER refresh the ACTIVE account's token — Claude Code owns it and the
+  //     refresh token rotates; polyclaude refreshing it races the live process and
+  //     rate-limits the token endpoint. Show last-known numbers; Claude Code
+  //     refreshes the token the next time you actually use it.
   if (label === activeLabel) {
-    throw new Error("session token expired — open Claude to refresh");
+    throw new Error("open Claude to refresh");
   }
 
-  // 2b. Inactive account → polyclaude manages it: refresh once (with backoff).
+  // 2b. Refresh once (with backoff), then retry the call. While backed off, keep
+  //     reporting the REAL reason of the last failure (e.g. "sign in again") so an
+  //     invalid login isn't masked as generic staleness for the next 10 minutes.
   const until = backoffUntil.get(label) ?? 0;
-  if (Date.now() < until) throw new Error("usage temporarily unavailable");
+  if (Date.now() < until) throw new Error(lastFailReason.get(label) ?? "usage temporarily unavailable");
 
   let r: oauthapi.RefreshResult;
   try {
     r = await oauthapi.refresh(creds.claudeAiOauth.refreshToken);
   } catch (e) {
+    const reason = friendly((e as Error).message);
+    lastFailReason.set(label, reason);
     backoffUntil.set(label, Date.now() + REFRESH_BACKOFF_MS);
-    throw e;
+    throw new Error(reason);
   }
   const fresh: CredentialsFile = {
     ...creds,
@@ -78,6 +92,7 @@ async function callWithAuth<T>(label: string, call: (token: string) => Promise<T
   };
   await persist(label, activeLabel, fresh);
   backoffUntil.delete(label);
+  lastFailReason.delete(label);
   return await call(r.access_token);
 }
 
@@ -93,31 +108,69 @@ function toAccountUsage(u: oauthapi.UsageResponse): AccountUsage {
 }
 
 function friendly(msg: string): string {
-  if (/rate-limited|rate_limit/i.test(msg)) return "usage temporarily unavailable (rate-limited)";
-  if (/unauthorized|401/i.test(msg)) return "session expired — run Claude or re-add the account";
+  if (/429|rate-?limit|too many/i.test(msg)) return "usage temporarily unavailable (rate-limited)";
+  // A failed refresh with an invalid/expired refresh token means the login is no
+  // longer valid — only a real re-login fixes it. The token endpoint returns these
+  // as invalid_grant or a bare 4xx (e.g. "token refresh failed (HTTP 400)").
+  if (/invalid_grant|invalid_request|invalid_token|unauthor|401|refresh failed \(http 40/i.test(msg)) {
+    return "sign in again — run /login in Claude";
+  }
   return msg;
 }
 
-/** Fetch + cache usage for a stored account label, keeping the last value on failure. */
+// Cross-process rate guard: never hit the usage endpoint more than ~once / 2 min
+// for an account (and back off hard after a 429), no matter how often any process
+// polls. The window is persisted on the account meta (usageNextFetchAt) so the
+// GUI, the status line (a fresh process per render), and the CLI all coordinate —
+// the usage API is undocumented and rate-limited.
+const MIN_FETCH_MS = 120_000;
+const RATE_LIMIT_BACKOFF_MS = 10 * 60_000;
+
+/** Fetch + cache usage for a stored account label, keeping the last value on
+ *  failure. Throttled per account so we don't hammer (and get 429'd by) the API. */
 export async function fetchForLabel(label: string): Promise<AccountUsage> {
+  const meta = (await vault.load()).accounts[label]?.meta;
+  const cached = meta?.usage;
+
+  // Within the throttle / back-off window → don't call the API. Return the cached
+  // value as persisted (it already carries any stale/error state from last time).
+  if (Date.now() < (meta?.usageNextFetchAt ?? 0)) {
+    return cached ?? { fetchedAt: Date.now(), error: "usage temporarily unavailable" };
+  }
+
   try {
     const u = await callWithAuth(label, oauthapi.getUsage);
     const usage = toAccountUsage(u);
-    await vault.updateMeta(label, { usage });
+    await vault.updateMeta(label, { usage, usageNextFetchAt: Date.now() + MIN_FETCH_MS });
     // For the active account, keep the vault's stored credentials in sync with
     // the live file — so reconnecting via `claude auth login` updates this entry
-    // (no duplicate) and switching back later won't restore a stale token.
+    // (no duplicate) and switching back later won't restore a stale token. But
+    // only when the token actually rotated: the live `expiresAt` differs from the
+    // one we recorded. Tokens last ~8h, so without this guard a status line would
+    // spawn a DPAPI encrypt + extra vault write on every ~90s refresh for no gain.
     const data = await vault.load();
     if (data.activeLabel === label) {
       const live = await credentials.readActive();
-      if (live) await vault.replaceCredentials(label, live).catch(() => {});
+      const storedExpiresAt = data.accounts[label]?.meta.expiresAt;
+      if (live && live.claudeAiOauth.expiresAt !== storedExpiresAt) {
+        await vault.replaceCredentials(label, live).catch(() => {});
+      }
     }
     return usage;
   } catch (e) {
-    const data = await vault.load();
-    const existing = data.accounts[label]?.meta.usage;
-    if (existing && existing.fiveHourPct != null) return existing; // keep last good
-    return { fetchedAt: Date.now(), error: friendly((e as Error).message) };
+    const msg = (e as Error).message;
+    const reason = friendly(msg);
+    // Back off — hard on a 429, gently otherwise (so a failing account isn't
+    // re-polled every 30s, which is how we got rate-limited in the first place).
+    const backoff = /429|rate-?limit|too many/i.test(msg) ? RATE_LIMIT_BACKOFF_MS : MIN_FETCH_MS;
+    // Persist the error state (keeping last-good numbers) + the back-off window,
+    // so every process shows the same reason and waits the same amount.
+    const result: AccountUsage =
+      cached && cached.fiveHourPct != null
+        ? { ...cached, stale: true, error: reason }
+        : { fetchedAt: Date.now(), error: reason };
+    await vault.updateMeta(label, { usage: result, usageNextFetchAt: Date.now() + backoff }).catch(() => {});
+    return result;
   }
 }
 
@@ -131,7 +184,8 @@ export async function fetchProfileForLabel(label: string): Promise<void> {
       orgName: p.organization.name,
       orgType: p.organization.organization_type,
       seatTier: p.organization.seat_tier ?? null,
-      subscriptionType: p.account.has_claude_max ? "max" : p.account.has_claude_pro ? "pro" : undefined,
+      // Plan from the active org (team/enterprise wins over a personal Pro flag).
+      subscriptionType: oauthapi.planFromProfile(p),
       rateLimitTier: p.organization.rate_limit_tier,
     });
   } catch {
