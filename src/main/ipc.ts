@@ -105,6 +105,16 @@ export function registerIpc(): void {
     }
   });
 
+  // Update check (notify-only; no auto-updater). Returns null on any failure.
+  ipcMain.handle("updates:check", async () => {
+    const u = await import("./updates.js");
+    return u.checkForUpdate();
+  });
+  ipcMain.handle("updates:open", async (_e, url: string) => {
+    const u = await import("./updates.js");
+    await u.openRelease(url);
+  });
+
   // Let the renderer drag-resize-less window controls if we go frameless later.
   ipcMain.handle("window:minimize", (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
 

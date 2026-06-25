@@ -13,6 +13,10 @@ Desktop app ships as real installers, with an optional bundled CLI.
   the app's own binary in Node mode, so there's no separate Node/npm install.
 - **Account management in the desktop sidebar** — right-click to rename, re-login,
   add, or delete an account, and drag to reorder. Order persists.
+- **Update notifier** — the app checks GitHub on launch and shows a dismissible
+  "update available" banner linking to the new release (no silent auto-update;
+  that waits on code-signing). Releases no longer carry `.blockmap` / `latest*.yml`
+  auto-update files.
 - **Fix:** team/enterprise accounts were mislabeled "Pro" — the plan now reflects
   the active organization, not a personal Pro entitlement.
 - CLI `--version` now tracks `package.json` instead of a hard-coded string.

@@ -54,6 +54,13 @@ export interface CliStatus {
   hint?: string;
 }
 
+export interface UpdateInfo {
+  current: string;
+  latest: string;
+  url: string;
+  newer: boolean;
+}
+
 export type Result = { ok: true } | { ok: false; error: string };
 
 export interface PolyApi {
@@ -81,6 +88,10 @@ export interface PolyApi {
     status(): Promise<CliStatus>;
     install(): Promise<{ ok: true; status: CliStatus } | { ok: false; error: string }>;
     uninstall(): Promise<Result>;
+  };
+  updates: {
+    check(): Promise<UpdateInfo | null>;
+    open(url: string): Promise<void>;
   };
   clipboard: { saveImage(bytes: Uint8Array): Promise<string | null> };
   terminal: {

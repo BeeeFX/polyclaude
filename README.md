@@ -127,6 +127,19 @@ screen. The same button works on Windows if you skipped it at install time. Eith
 way it puts `pcc` and `polyclaude` on your PATH, running the app's own binary in
 CLI mode (no separate Node install).
 
+### Updating
+
+The app checks GitHub for a newer release on launch and shows a small banner with
+a **Download** link when one exists — it never installs anything itself. To update,
+grab the new build and install over the old one:
+
+- **Windows**: run the new `Setup.exe` (it upgrades in place).
+- **macOS**: drag the new `.app` over the old one in Applications.
+- **Linux**: replace the `.AppImage`.
+
+(There's no silent auto-update yet — that needs code-signing, which is on the
+roadmap.)
+
 ### Run from source
 
 ```sh
@@ -337,7 +350,8 @@ npm run test:crypto      # at-rest encrypt/decrypt round-trip on this OS
 - [x] In-app sign-in, rename, delete + drag-to-reorder accounts (desktop)
 - [x] Cross-platform installers (Windows / macOS / Linux) built in CI
 - [x] Optional bundled CLI (install `pcc` with the app, or one click in-app)
-- [ ] Code-signed / notarized installers
+- [x] In-app "update available" notifier (checks GitHub on launch)
+- [ ] Code-signed / notarized installers (enables silent auto-update)
 - [ ] Background limit watcher with desktop notifications
 
 ## Contributing

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
-import type { AccountMeta, AccountUsage, CliStatus, Conversation, Settings, TermStartOpts } from "./types";
+import type { AccountMeta, AccountUsage, CliStatus, Conversation, Settings, TermStartOpts, UpdateInfo } from "./types";
 import { ago, cap, level, pctText, resetAt, resetIn } from "./format";
 import { TerminalView } from "./Terminal";
 import { Mascot } from "./Mascot";
@@ -51,6 +51,8 @@ export function App() {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [cliStatus, setCliStatus] = useState<CliStatus | null>(null);
   const [cliBusy, setCliBusy] = useState(false);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -89,6 +91,7 @@ export function App() {
         void window.poly.conversations.list(6).then(setConvos);
         void window.poly.terminal.available().then(setTermAvailable);
         void window.poly.cli.status().then(setCliStatus);
+        void window.poly.updates.check().then(setUpdate);
         void refreshUsage();
       } catch (e) {
         setLoadError((e as Error).message);
@@ -338,6 +341,22 @@ export function App() {
       </aside>
 
       <main className="main">
+        {update?.newer && !updateDismissed && (
+          <div className="update-bar">
+            <span className="update-msg">
+              <span className="update-dot">⬆</span> polyclaude <b>{update.latest}</b> is available
+              <span className="muted"> — you have {update.current}.</span>
+            </span>
+            <span className="update-actions">
+              <button className="ghost accent" onClick={() => void window.poly.updates.open(update.url)}>
+                Download
+              </button>
+              <button className="update-x" title="Dismiss" onClick={() => setUpdateDismissed(true)}>
+                ✕
+              </button>
+            </span>
+          </div>
+        )}
         <header className="topbar">
           <div className="hello">
             <h1>Welcome back, {name}</h1>
