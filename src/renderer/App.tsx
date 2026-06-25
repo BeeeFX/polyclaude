@@ -53,6 +53,7 @@ export function App() {
   const [cliBusy, setCliBusy] = useState(false);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
+  const [updating, setUpdating] = useState<"idle" | "working" | "error">("idle");
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -149,6 +150,14 @@ export function App() {
     },
     [reload, refreshUsage, flash]
   );
+
+  // Windows/Linux: download the update and relaunch. On success the app quits,
+  // so we only handle the failure path (fall back to a manual download link).
+  const runUpdate = useCallback(async () => {
+    setUpdating("working");
+    const r = await window.poly.updates.install();
+    if (!r.ok) setUpdating("error");
+  }, []);
 
   const toggleCli = useCallback(async () => {
     setCliBusy(true);
@@ -346,11 +355,18 @@ export function App() {
             <span className="update-msg">
               <span className="update-dot">⬆</span> polyclaude <b>{update.latest}</b> is available
               <span className="muted"> — you have {update.current}.</span>
+              {updating === "error" && <span className="muted"> Auto-update failed — download it instead.</span>}
             </span>
             <span className="update-actions">
-              <button className="ghost accent" onClick={() => void window.poly.updates.open(update.url)}>
-                Download
-              </button>
+              {update.mode === "auto" && updating !== "error" ? (
+                <button className="ghost accent" disabled={updating === "working"} onClick={() => void runUpdate()}>
+                  {updating === "working" ? "Updating…" : "Update & restart"}
+                </button>
+              ) : (
+                <button className="ghost accent" onClick={() => void window.poly.updates.open(update.url)}>
+                  Download
+                </button>
+              )}
               <button className="update-x" title="Dismiss" onClick={() => setUpdateDismissed(true)}>
                 ✕
               </button>

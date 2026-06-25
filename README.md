@@ -138,16 +138,16 @@ CLI mode (no separate Node install).
 
 ### Updating
 
-The app checks GitHub for a newer release on launch and shows a small banner with
-a **Download** link when one exists — it never installs anything itself. To update,
-grab the new build and install over the old one:
+The app checks GitHub for a newer release on launch and shows a banner when one
+exists. What the banner does depends on the OS:
 
-- **Windows**: run the new `Setup.exe` (it upgrades in place).
-- **macOS**: drag the new `.app` over the old one in Applications.
-- **Linux**: replace the `.AppImage`.
-
-(There's no silent auto-update yet — that needs code-signing, which is on the
-roadmap.)
+- **Windows & Linux** — **self-update**. The banner says *Update & restart*; click
+  it and the app downloads the new version and relaunches into it. No re-download.
+- **macOS** — **notify-only**. The banner says *Download* and opens the Releases
+  page; you re-download the `.dmg` and reinstall (drag over the old app, then the
+  one-time `xattr -cr` if macOS complains). Silent auto-update on macOS needs
+  Apple code-signing/notarization, which is on the roadmap — until then this is the
+  best an unsigned app can do.
 
 ### Run from source
 
@@ -359,8 +359,8 @@ npm run test:crypto      # at-rest encrypt/decrypt round-trip on this OS
 - [x] In-app sign-in, rename, delete + drag-to-reorder accounts (desktop)
 - [x] Cross-platform installers (Windows / macOS / Linux) built in CI
 - [x] Optional bundled CLI (install `pcc` with the app, or one click in-app)
-- [x] In-app "update available" notifier (checks GitHub on launch)
-- [ ] Code-signed / notarized installers (enables silent auto-update)
+- [x] Self-update on Windows & Linux (electron-updater); notify-only on macOS
+- [ ] Code-signed / notarized installers (enables silent auto-update on macOS too)
 - [ ] Background limit watcher with desktop notifications
 
 ## Contributing

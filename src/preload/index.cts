@@ -39,6 +39,7 @@ const api = {
   updates: {
     check: () => ipcRenderer.invoke("updates:check"),
     open: (url: string) => ipcRenderer.invoke("updates:open", url),
+    install: () => ipcRenderer.invoke("updates:install"),
   },
   clipboard: { saveImage: (bytes: Uint8Array) => ipcRenderer.invoke("clipboard:saveImage", bytes) },
   terminal: {

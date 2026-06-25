@@ -42,19 +42,20 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npx --no-install electron-builder --${{ matrix.platform }} --publish always
 
-  # The macOS dmg/zip targets still emit .blockmap files even with
-  # publishAutoUpdate:false (no per-target switch). Since we ship no auto-updater,
-  # strip every .blockmap from the draft release once all builds have uploaded.
+  # macOS is notify-only (no electron-updater), so its auto-update artifacts are
+  # dead weight: strip latest-mac.yml and the dmg/zip .blockmap files once all
+  # builds have uploaded. The Windows/Linux update files (latest.yml,
+  # latest-linux.yml, Setup.exe.blockmap) are kept — electron-updater needs them.
   cleanup:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Remove .blockmap artifacts from the release
+      - name: Remove macOS-only auto-update artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF_NAME}"
-          for a in $(gh release view "$tag" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep '\.blockmap$' || true); do
+          for a in $(gh release view "$tag" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -E '\.dmg\.blockmap$|mac\.zip\.blockmap$|^latest-mac\.yml$' || true); do
             echo "deleting $a"
             gh release delete-asset "$tag" "$a" -R "$GITHUB_REPOSITORY" --yes || true
           done

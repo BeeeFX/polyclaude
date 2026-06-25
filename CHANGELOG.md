@@ -13,10 +13,11 @@ Desktop app ships as real installers, with an optional bundled CLI.
   the app's own binary in Node mode, so there's no separate Node/npm install.
 - **Account management in the desktop sidebar** — right-click to rename, re-login,
   add, or delete an account, and drag to reorder. Order persists.
-- **Update notifier** — the app checks GitHub on launch and shows a dismissible
-  "update available" banner linking to the new release (no silent auto-update;
-  that waits on code-signing). Releases no longer carry `.blockmap` / `latest*.yml`
-  auto-update files.
+- **Updates** — the app checks GitHub on launch and shows a banner. On **Windows
+  and Linux** it self-updates (click *Update & restart* → downloads + relaunches,
+  via electron-updater). On **macOS** it's notify-only (links to the Releases page;
+  silent auto-update there needs code-signing). macOS auto-update files are stripped
+  from releases; Windows/Linux keep theirs.
 - **macOS window** uses a standard title bar so it can be dragged (the previous
   frameless style left nothing to grab and overlapped the sidebar logo).
 - **macOS dmg** now includes a "how to open" read-me with the one-time

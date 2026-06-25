@@ -31,14 +31,13 @@ files:
 extraMetadata:
   main: dist/main/index.js
 
-# We don't ship an auto-updater, so don't publish the auto-update files
-# (latest*.yml + .blockmap) — nobody hand-downloads those; they'd just clutter
-# the Releases page. publishAutoUpdate:false skips uploading them; nsis's own
-# differentialPackage:false drops the installer blockmap. Re-enable if
-# electron-updater is added later.
+# Windows & Linux self-update via electron-updater, which reads latest*.yml from
+# the release — so publish the auto-update files. macOS is notify-only (Squirrel
+# won't update an unsigned app); its latest-mac.yml + dmg/zip blockmaps are
+# stripped by the release workflow's cleanup job.
 publish:
   provider: github
-  publishAutoUpdate: false
+  publishAutoUpdate: true
 
 win:
   target:
@@ -47,6 +46,8 @@ win:
     - target: zip # portable, no-install build (also used to smoke-test packaging)
       arch: [x64]
   icon: build/icon.png
+  # Unsigned app → don't reject the (also unsigned) update during auto-update.
+  verifyUpdateCodeSignature: false
 
 nsis:
   oneClick: false
@@ -54,7 +55,6 @@ nsis:
   allowToChangeInstallationDirectory: true
   include: build/installer.nsh
   deleteAppDataOnUninstall: false
-  differentialPackage: false
   artifactName: ${productName}-${version}-Setup.${ext}
 
 mac:

@@ -114,6 +114,11 @@ export function registerIpc(): void {
     const u = await import("./updates.js");
     await u.openRelease(url);
   });
+  // Windows/Linux only: download the pending update and relaunch into it.
+  ipcMain.handle("updates:install", async () => {
+    const u = await import("./updates.js");
+    return u.downloadAndInstall();
+  });
 
   // Let the renderer drag-resize-less window controls if we go frameless later.
   ipcMain.handle("window:minimize", (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());

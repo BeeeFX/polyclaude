@@ -55,6 +55,7 @@ export interface CliStatus {
 }
 
 export interface UpdateInfo {
+  mode: "auto" | "notify";
   current: string;
   latest: string;
   url: string;
@@ -92,6 +93,7 @@ export interface PolyApi {
   updates: {
     check(): Promise<UpdateInfo | null>;
     open(url: string): Promise<void>;
+    install(): Promise<{ ok: boolean; error?: string }>;
   };
   clipboard: { saveImage(bytes: Uint8Array): Promise<string | null> };
   terminal: {
