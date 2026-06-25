@@ -31,6 +31,11 @@ const api = {
   },
   conversations: { list: (limit?: number) => ipcRenderer.invoke("conversations:list", limit) },
   claude: { launch: (cwd?: string) => ipcRenderer.invoke("claude:launch", cwd) },
+  cli: {
+    status: () => ipcRenderer.invoke("cli:status"),
+    install: () => ipcRenderer.invoke("cli:install"),
+    uninstall: () => ipcRenderer.invoke("cli:uninstall"),
+  },
   clipboard: { saveImage: (bytes: Uint8Array) => ipcRenderer.invoke("clipboard:saveImage", bytes) },
   terminal: {
     available: () => ipcRenderer.invoke("terminal:available"),

@@ -1,0 +1,63 @@
+appId: com.beeefx.polyclaude
+productName: polyclaude
+copyright: © BeeeFX
+
+# Ship unpacked (no asar): the bundled CLI shim re-runs this app's binary in
+# Node mode against dist/cli/index.js, and node-pty's native prebuild loads from
+# disk — both are simplest and most reliable when files aren't inside an archive.
+asar: false
+
+# node-pty 1.1.0 ships N-API prebuilds that load under Electron 33 as-is, so do
+# NOT let electron-builder rebuild native deps from source (winpty's build needs
+# a toolchain we don't have, and the prebuild is what `npm run gui` already uses).
+npmRebuild: false
+
+directories:
+  output: release
+  buildResources: build
+
+# Only the built output + assets are shipped; production node_modules are added
+# automatically by electron-builder. devDependencies and sources are excluded.
+files:
+  - dist/**/*
+  - assets/**/*
+  - package.json
+  - "!**/*.{md,map,ts,tsx}"
+  - "!**/{tsconfig.json,vite.config.ts,electron-builder.yml}"
+
+extraMetadata:
+  main: dist/main/index.js
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+
+nsis:
+  oneClick: false
+  perMachine: false # per-user install → no admin prompt
+  allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-${version}-Setup.${ext}
+
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.png
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  # Unsigned builds: the app is ad-hoc signed so it runs after a right-click→Open.
+  identity: null
+
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+linux:
+  category: Development
+  icon: build/icon.png
+  target:
+    - AppImage

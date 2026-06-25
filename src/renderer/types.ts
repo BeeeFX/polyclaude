@@ -47,6 +47,13 @@ export interface AuthStatus {
   subscriptionType?: string;
 }
 
+export interface CliStatus {
+  installed: boolean;
+  location?: string;
+  onPath: boolean;
+  hint?: string;
+}
+
 export type Result = { ok: true } | { ok: false; error: string };
 
 export interface PolyApi {
@@ -70,6 +77,11 @@ export interface PolyApi {
   };
   conversations: { list(limit?: number): Promise<Conversation[]> };
   claude: { launch(cwd?: string): Promise<Result> };
+  cli: {
+    status(): Promise<CliStatus>;
+    install(): Promise<{ ok: true; status: CliStatus } | { ok: false; error: string }>;
+    uninstall(): Promise<Result>;
+  };
   clipboard: { saveImage(bytes: Uint8Array): Promise<string | null> };
   terminal: {
     available(): Promise<boolean>;

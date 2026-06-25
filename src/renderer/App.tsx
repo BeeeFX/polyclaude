@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
-import type { AccountMeta, AccountUsage, Conversation, Settings, TermStartOpts } from "./types";
+import type { AccountMeta, AccountUsage, CliStatus, Conversation, Settings, TermStartOpts } from "./types";
 import { ago, cap, level, pctText, resetAt, resetIn } from "./format";
 import { TerminalView } from "./Terminal";
 import { Mascot } from "./Mascot";
@@ -49,6 +49,8 @@ export function App() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const dragLabel = useRef<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const [cliStatus, setCliStatus] = useState<CliStatus | null>(null);
+  const [cliBusy, setCliBusy] = useState(false);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -86,6 +88,7 @@ export function App() {
         setReady(true);
         void window.poly.conversations.list(6).then(setConvos);
         void window.poly.terminal.available().then(setTermAvailable);
+        void window.poly.cli.status().then(setCliStatus);
         void refreshUsage();
       } catch (e) {
         setLoadError((e as Error).message);
@@ -143,6 +146,27 @@ export function App() {
     },
     [reload, refreshUsage, flash]
   );
+
+  const toggleCli = useCallback(async () => {
+    setCliBusy(true);
+    try {
+      if (cliStatus?.installed) {
+        const r = await window.poly.cli.uninstall();
+        if (r.ok) {
+          setCliStatus(await window.poly.cli.status());
+          flash("Removed the pcc command");
+        } else flash(r.error);
+      } else {
+        const r = await window.poly.cli.install();
+        if (r.ok) {
+          setCliStatus(r.status);
+          flash(r.status.onPath ? "Installed pcc — open a new terminal" : "Installed pcc (see the note)");
+        } else flash(r.error);
+      }
+    } finally {
+      setCliBusy(false);
+    }
+  }, [cliStatus, flash]);
 
   // Close the context menu on Escape.
   useEffect(() => {
@@ -404,6 +428,38 @@ export function App() {
               <Toggle label="Auto-switch on limit" on={!!settings?.autoSwitch} onClick={() => void patchSettings({ autoSwitch: !settings?.autoSwitch })} />
             </div>
           </section>
+
+          {cliStatus && (
+            <section className="panel cli-panel" style={{ animationDelay: "175ms" }}>
+              <div className="cli-row">
+                <div className="cli-info">
+                  <div className="panel-head">Command-line tool</div>
+                  <p className="muted small">
+                    {cliStatus.installed ? (
+                      <>
+                        <code>pcc</code> is installed
+                        {cliStatus.location ? (
+                          <>
+                            {" "}
+                            in <code>{cliStatus.location}</code>
+                          </>
+                        ) : null}
+                        . {cliStatus.onPath ? "Run it from any terminal." : cliStatus.hint}
+                      </>
+                    ) : (
+                      <>
+                        Use polyclaude from any terminal — installs <code>pcc</code> and <code>polyclaude</code> commands
+                        that run this app in CLI mode.
+                      </>
+                    )}
+                  </p>
+                </div>
+                <button className={cliStatus.installed ? "ghost" : "ghost accent"} disabled={cliBusy} onClick={() => void toggleCli()}>
+                  {cliBusy ? "Working…" : cliStatus.installed ? "Remove" : "Install pcc"}
+                </button>
+              </div>
+            </section>
+          )}
 
           <section className="panel recent" style={{ animationDelay: "210ms" }}>
             <div className="panel-head">Recent conversations</div>

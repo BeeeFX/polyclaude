@@ -107,10 +107,35 @@ Prefer a window over a terminal? polyclaude ships a desktop app (Electron) that
 shares the **exact same core** as the CLI/TUI — switching, the encrypted vault,
 live usage, and settings all run through the same code.
 
+### Download an installer
+
+Grab the latest build for your OS from the
+[**Releases**](https://github.com/BeeeFX/polyclaude/releases) page:
+
+| OS | File | Notes |
+| --- | --- | --- |
+| **Windows** | `polyclaude-<version>-Setup.exe` | Per-user install, no admin needed. During setup it **asks whether to also install the `pcc` / `polyclaude` command-line tools** — say yes to get both in one go. |
+| **macOS** | `polyclaude-<version>-<arch>.dmg` | `arm64` for Apple Silicon, `x64` for Intel. Unsigned, so the first launch is **right-click → Open** (or *System Settings → Privacy & Security → Open Anyway*). |
+| **Linux** | `polyclaude-<version>.AppImage` | `chmod +x` and run. |
+
+> Installers are **unsigned** for now, so the OS may warn on first launch — that's
+> expected. (Signing/notarization is on the roadmap.)
+
+On macOS the `.dmg` can't prompt during install, so add the CLI from inside the
+app: open it and click **Install pcc** in the *Command-line tool* card on the home
+screen. The same button works on Windows if you skipped it at install time. Either
+way it puts `pcc` and `polyclaude` on your PATH, running the app's own binary in
+CLI mode (no separate Node install).
+
+### Run from source
+
 ```sh
 npm run gui        # build + launch the desktop app
 npm run gui:dev    # hot-reloading dev mode (Vite + Electron)
 ```
+
+To build the installers yourself: `npm run dist:win` / `dist:mac` / `dist:linux`
+(each OS must be built on its own platform; CI does all three on a tag push).
 
 What you get: a clean dark UI with your accounts and per-account usage in the
 sidebar, animated 5h / 7d usage for the active account, one-click account
@@ -129,7 +154,8 @@ conversation on the newly-selected account.
 > the binary ever can't load on your platform, the app degrades gracefully and
 > falls back to opening Claude in your system terminal.
 
-> **Roadmap:** in-app sign-in (add accounts from the GUI) and signed installers.
+> **Roadmap:** code-signed / notarized installers, and desktop notifications when
+> an account nears its limit.
 
 ## Quick start (beginner-friendly)
 
@@ -308,7 +334,10 @@ npm run test:crypto      # at-rest encrypt/decrypt round-trip on this OS
 - [x] macOS / Linux credential encryption (Keychain · 0600 key-file)
 - [x] Desktop app (Electron) sharing the same core
 - [x] Embedded terminal in the desktop app (run Claude in-window, paste images)
-- [ ] In-app sign-in from the desktop app + signed installers
+- [x] In-app sign-in, rename, delete + drag-to-reorder accounts (desktop)
+- [x] Cross-platform installers (Windows / macOS / Linux) built in CI
+- [x] Optional bundled CLI (install `pcc` with the app, or one click in-app)
+- [ ] Code-signed / notarized installers
 - [ ] Background limit watcher with desktop notifications
 
 ## Contributing

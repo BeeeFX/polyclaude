@@ -51,7 +51,17 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+// The Windows installer (and `polyclaude --install-cli/--uninstall-cli`) drives
+// the CLI-shim install headlessly: do the work, then exit without a window.
+const cliFlag = process.argv.find((a) => a === "--install-cli" || a === "--uninstall-cli");
+
+app.whenReady().then(async () => {
+  if (cliFlag) {
+    const { runCliAction } = await import("./cli-install.js");
+    const res = await runCliAction(cliFlag === "--install-cli" ? "install" : "uninstall");
+    app.exit(res.ok ? 0 : 1);
+    return;
+  }
   Menu.setApplicationMenu(null); // remove the default File/Edit/View/Window/Help menu
   if (process.platform === "darwin" && app.dock) {
     try {

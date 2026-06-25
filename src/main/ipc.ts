@@ -81,6 +81,30 @@ export function registerIpc(): void {
     }
   });
 
+  // Command-line tools (pcc / polyclaude): install/remove shims that re-run this
+  // app's binary in Node mode. Lets users get the CLI without a separate install.
+  ipcMain.handle("cli:status", async () => {
+    const cli = await import("./cli-install.js");
+    return cli.status();
+  });
+  ipcMain.handle("cli:install", async () => {
+    try {
+      const cli = await import("./cli-install.js");
+      return { ok: true as const, status: await cli.install() };
+    } catch (e) {
+      return err(e);
+    }
+  });
+  ipcMain.handle("cli:uninstall", async () => {
+    try {
+      const cli = await import("./cli-install.js");
+      await cli.uninstall();
+      return ok();
+    } catch (e) {
+      return err(e);
+    }
+  });
+
   // Let the renderer drag-resize-less window controls if we go frameless later.
   ipcMain.handle("window:minimize", (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
 

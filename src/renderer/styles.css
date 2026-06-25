@@ -288,6 +288,40 @@ button:disabled {
   color: var(--high);
   border-color: var(--high);
 }
+.ghost.accent {
+  color: var(--accent);
+  border-color: var(--accent-2);
+}
+.ghost.accent:hover {
+  color: #140f1f;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+}
+.ghost:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.cli-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+}
+.cli-info {
+  min-width: 0;
+}
+.cli-info .panel-head {
+  margin-bottom: 4px;
+}
+.cli-row code {
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-soft);
+  color: var(--accent);
+}
 .term-host {
   flex: 1;
   min-height: 0;
