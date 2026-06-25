@@ -33,24 +33,22 @@ protects its own — see [Platform support](#platform-support).
 > accounts to work *past* a plan's usage limits may conflict with Anthropic's terms
 > — that's your call. Provided as-is, with no warranty.
 
-```
-   ██           ██     Meet Poly — polyclaude's purple block mascot, in the
-     ██       ██       spirit of Claude's pixel creature. On a dark terminal
-    █████████████      she's purple with dark eye-holes. She greets you on the
-    ████  ███  ██      home screen with a friendly "Welcome back", next to
-    █████████████      Tips, Recent activity, and a "? for shortcuts" hint.
-  █████████████████
-  █████████████████
-    █████████████
-      ██     ██
-     ███     ███
-```
+## Screenshots
 
+<div align="center">
 
-The home screen mirrors Claude Code's welcome: a purple-bordered box with
-"Welcome back, &lt;name&gt;!", your plan + working directory, a **Tips** panel, and
-**Recent activity** (your latest conversations). polyclaude asks your name the
-first time you sign in — change it any time with `pcc set name <you>`.
+<img src="docs/Interface.png" alt="polyclaude desktop app: account sidebar, live 5-hour and weekly usage, session defaults, the command-line-tool installer, and recent conversations" width="760">
+
+<br><br>
+
+<img src="docs/Welcome_Page_Tutorial.png" alt="First-run welcome tour" width="380">&nbsp;
+<img src="docs/First_Login.png" alt="Connect your Claude account screen" width="380">
+
+</div>
+
+> Meet **Poly** — polyclaude's purple block mascot, in the spirit of Claude's
+> pixel creature. She greets you on the home screen ("Welcome back, &lt;name&gt;!");
+> polyclaude asks your name the first time you sign in (`pcc set name <you>`).
 
 ---
 
